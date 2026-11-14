@@ -222,8 +222,57 @@ Theme slate()
     return t;
 }
 
+// Horizon: light paper and the icon's red.
+Theme horizon()
+{
+    Theme t;
+    t.id = "horizon";
+    t.name = "Horizon";
+    t.summary = TR("Light paper and the icon's red.");
+
+    t.base = rgb(0xf2f2f4);
+    t.scrim = rgb(0x1c1c21);
+    t.glass = rgb(0xffffff);
+    t.panel = rgb(0xffffff);
+    t.panel_edge = rgb(0xe2e2e7);
+    t.row = rgb(0xf6f6f8);
+    t.row_edge = rgb(0xe2e2e7);
+    t.row_focus = rgb(0xfbe8e5);
+
+    t.accent = rgb(0xd23a2a);
+    t.accent_deep = rgb(0xa83018);
+    t.accent_pale = rgb(0x3a3a42);
+    t.on_accent = rgb(0xffffff);
+    t.highlight = rgb(0xf2a08f);
+
+    t.text = rgb(0x1c1c21);
+    t.title = rgb(0x1c1c21);
+    t.value = rgb(0x2a2a31);
+    t.body = rgb(0x33333b);
+    t.copy = rgb(0x4a4a53);
+    t.meta = rgb(0x6d6d77);
+    t.label = rgb(0x6d6d77);
+    t.muted = rgb(0x8a8a94);
+    t.faint = rgb(0xa3a3ad);
+    t.warning = rgb(0xb3261e);
+    t.rule = rgb(0xe2e2e7);
+    derive_roles(t);
+    t.toggle_track = rgb(0xd9d9df);
+    t.button_fill = rgb(0xffffff);
+    t.tile_fill = rgb(0xffffff);
+    t.controller = rgb(0x33333b);
+    return t;
+}
+
 // ---- accent presets: named colour sets a player can pick for a theme ----
 // The first of each theme's is its own colours, stored as "" in the settings file.
+
+const AccentPreset kHorizonAccents[] = {
+    {"red", "Red", rgb(0xd23a2a), rgb(0xa83018), rgb(0x3a3a42), rgb(0xffffff), rgb(0xf2a08f)},
+    {"ocean", "Ocean", rgb(0x2a6fd2), rgb(0x1a4a98), rgb(0x3a3a42), rgb(0xffffff), rgb(0x8fb8f2)},
+    {"forest", "Forest", rgb(0x2e8a4e), rgb(0x1c5e32), rgb(0x3a3a42), rgb(0xffffff), rgb(0x9ad4ac)},
+    {"violet", "Violet", rgb(0x7a4ad2), rgb(0x52309a), rgb(0x3a3a42), rgb(0xffffff), rgb(0xc0a8f0)},
+};
 
 const AccentPreset kEglantineAccents[] = {
     {"rose", "Rose", rgb(0xe23b60), rgb(0x7a1f3d), rgb(0xe8a6bc), rgb(0x201214), rgb(0xffb3c4)},
@@ -259,7 +308,7 @@ struct Store
 {
     // The first is the default: a settings file without a theme, or with one this build has not,
     // shows the launcher as it always looked.
-    std::array<Theme, 3> all{eglantine(), canopy(), slate()};
+    std::array<Theme, 4> all{horizon(), eglantine(), canopy(), slate()};
     int index = 0;
     int accent = 0;
     Theme active = all[0];
@@ -276,10 +325,12 @@ std::span<const AccentPreset> presets_for(int theme)
     switch (theme)
     {
     case 0:
-        return kEglantineAccents;
+        return kHorizonAccents;
     case 1:
-        return kCanopyAccents;
+        return kEglantineAccents;
     case 2:
+        return kCanopyAccents;
+    case 3:
         return kSlateAccents;
     default:
         return {};

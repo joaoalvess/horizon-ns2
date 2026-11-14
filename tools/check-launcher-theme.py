@@ -11,9 +11,9 @@ own would keep that colour in every theme. This fails when
   - a file of the launcher's screens (headless/eglantineps5/pe/ui, host) other than theme.cpp
     writes a colour as a number (Color::rgb(0x...)) on a line not marked "theme: fixed", or names
     one of the constants the themes replaced (theme::k...),
-  - the Eglantine theme is not the first (the default), or its colours are not the rose look the
-    launcher had before themes,
-  - the default theme of the settings file (settings_store.h, services.hpp) is not Eglantine,
+  - the Horizon theme is not the first (the default), or Eglantine's colours are not the rose look
+    the launcher had before themes,
+  - the default theme of the settings file (settings_store.h, services.hpp) is not Horizon,
   - the console build does not compile theme.cpp, or the launcher depends on the ps5-homebrew-ui
     kit or ProsperoEden's data folder,
   - theme.cpp, built and run on this machine, leaves a role of a theme unset, or picks themes and
@@ -97,8 +97,8 @@ def static_checks(problems):
 
     source = THEME_CPP.read_text(encoding="utf-8")
     order = re.search(r"std::array<Theme, \d+> all\{(\w+)\(\)", source)
-    if not order or order.group(1) != "eglantine":
-        problems.append("theme.cpp: Eglantine is not the first theme (the default)")
+    if not order or order.group(1) != "horizon":
+        problems.append("theme.cpp: Horizon is not the first theme (the default)")
     rose = function_body(source, "eglantine")
     if "derive_roles" in rose:
         problems.append("theme.cpp: Eglantine sets its roles itself, none derived")
@@ -115,13 +115,13 @@ def static_checks(problems):
         problems.append('theme.cpp: Eglantine\'s id is not "eglantine"')
 
     store = (ROOT / "headless/settings_store.h").read_text(encoding="utf-8")
-    if 'kDefaultLauncherTheme = "eglantine"' not in store:
-        problems.append("settings_store.h: the default launcher theme is not eglantine")
+    if 'kDefaultLauncherTheme = "horizon"' not in store:
+        problems.append("settings_store.h: the default launcher theme is not horizon")
     if '"/launcher/theme"' not in store or '"/launcher/accent"' not in store:
         problems.append("settings_store.h: /launcher/theme and /launcher/accent are not read")
     services = (LAUNCHER / "pe/ui/services.hpp").read_text(encoding="utf-8")
-    if 'std::string theme = "eglantine";' not in services:
-        problems.append("services.hpp: Preferences::theme does not default to eglantine")
+    if 'std::string theme = "horizon";' not in services:
+        problems.append("services.hpp: Preferences::theme does not default to horizon")
     if "pe/ui/theme.cpp" not in (ROOT / "headless/CMakeLists.txt").read_text(encoding="utf-8"):
         problems.append("headless/CMakeLists.txt does not compile pe/ui/theme.cpp")
     for path in [*LAUNCHER.rglob("*.[ch]pp"), ROOT / "headless/settings_store.h"]:
@@ -152,7 +152,7 @@ static void every_role(const Theme &t)
 }
 int main()
 {
-    CHECK(std::string{th().id} == "eglantine");
+    CHECK(std::string{th().id} == "horizon");
     CHECK(theme_index() == 0 && accent_index() == 0);
     std::set<std::string> ids;
     for (const Theme &t : themes())
@@ -227,7 +227,7 @@ def main():
         print(f"check-launcher-theme: {problem}", file=sys.stderr)
     if problems:
         return 1
-    print("check-launcher-theme: the screens name roles, and Eglantine is the default rose look")
+    print("check-launcher-theme: the screens name roles, and Horizon is the default look")
     return 0
 
 

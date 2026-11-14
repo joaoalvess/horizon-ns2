@@ -30,12 +30,13 @@ digits and `-`.
 
 | Id          | Name      | Look                                        | Accent colors |
 |-------------|-----------|---------------------------------------------|---------------|
-| `eglantine` | Eglantine | dark rose glass and petal pink (the default) | Rose, Coral, Amber, Lilac, Ocean, Mint, Silver |
+| `horizon`   | Horizon   | light paper and the icon's red (the default) | Red, Ocean, Forest, Violet |
+| `eglantine` | Eglantine | dark rose glass and petal pink              | Rose, Coral, Amber, Lilac, Ocean, Mint, Silver |
 | `canopy`    | Canopy    | tropical dusk, dark green glass and lime    | Lime, Gold, Ember, Teal, Sakura, Ocean, Violet |
 | `slate`     | Slate     | neutral glass, clean and still              | Silver, Ice, Rose, Amber, Mint, Lilac, Sky |
 
-Eglantine is the launcher as it always looked: every role is set to the colour the screens used
-before themes, so nothing changes for a player who does not choose another. The other themes set
+Horizon is the default: the flat light look, with the red of the app icon. Eglantine is the
+launcher as it looked upstream: every role is set to the colour the screens used before themes. The other themes set
 their main roles (surfaces, accent, text) and leave the rest (switch tracks, cover placeholders,
 high-contrast panels, the home screen's smaller text) to mixes of those.
 
@@ -48,14 +49,14 @@ with solid panels and an outlined highlight in that theme's colours.
 1. Write a function in `headless/eglantineps5/pe/ui/theme.cpp` that fills a `Theme` (the roles
    are listed and described in `theme.hpp`): its id, name and one-line summary (marked with
    `TR()` so it can be translated), its main colours, then `derive_roles(t)` for the rest.
-2. Add it to the `Store`'s list (after Eglantine, which stays first) and give it a list of accent
+2. Add it to the `Store`'s list (after Horizon, which stays first) and give it a list of accent
    presets in `presets_for`, its own colours first.
 3. Run `python3 tools/launcher/strings.py extract` for the new summary, and
    `python3 tools/check-launcher-theme.py`.
 
 `tools/check-launcher-theme.py` (part of the host checks in `tools/build-headless-host.sh`)
 fails when a screen writes a colour as a number instead of naming a role (a QR code, dark on
-white in every theme, is marked `theme: fixed`), when Eglantine is not the default or differs
+white in every theme, is marked `theme: fixed`), when Horizon is not the default, when Eglantine differs
 from the rose look, and when `theme.cpp`, built and run on the PC, leaves a role of a theme unset
 or picks themes and accents other than `theme.hpp` says.
 
