@@ -49,14 +49,14 @@ assert 'if (std::filesystem::exists(Eden::AppFile("block-list.txt"))) Eden::JitL
 
 # Settings > Performance in the launcher: its seven switches are the general values.
 services = (root / 'headless/eglantineps5/eden_services.cpp').read_text()
-load = services.split('pe::ui::Preferences EdenServices::preferences() {', 1)[1].split('\n}\n', 1)[0]
+load = services.split('pe::ui::Preferences EdenServices::preferences(int platform) {', 1)[1].split('\n}\n', 1)[0]
 save = services.split('bool EdenServices::set_preferences(', 1)[1].split('\n}\n', 1)[0]
-assert 'const Eden::PerformanceSettings speed = Eden::LoadPerformance(0);' in load
+assert 'const Eden::PerformanceSettings speed = Eden::LoadPerformance(0, Eden::SettingsFile(), platform);' in load
 for name in ('block_list', 'async_shaders', 'fast_gpu', 'unsafe_cpu', 'unsafe_dma', 'reactive_flushing',
              'skip_invalidation'):
     assert f'result.{name} = speed.{name};' in load, name
     assert f'speed.{name} = preferences.{name};' in save, name
-assert 'Eden::PerformanceSettings speed = Eden::LoadPerformance(0);' in save
-assert 'Eden::SavePerformance(0, speed)' in save
+assert 'Eden::PerformanceSettings speed = Eden::LoadPerformance(0, Eden::SettingsFile(), preferences.platform);' in save
+assert 'Eden::SavePerformance(0, speed, Eden::SettingsFile(), preferences.platform)' in save
 print('Performance settings: the block list, shaders, GPU, CPU and DMA accuracy, flushing and invalidation '
       'reach the session PASS')

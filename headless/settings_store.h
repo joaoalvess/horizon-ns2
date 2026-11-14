@@ -20,7 +20,8 @@
 //                      "skip_invalidation": false, "gpu_clock": "boost", "swap_file": true },
 //                      ("gpu_clock": "normal", "boost", "overclock" or "fixed")
 //     "game_files": "/mnt/ext1/eden",
-//     "library": { "last_game": "Game [id].nsp", "recent": ["Game [id].nsp"] },
+//     "library": { "last_game": "Game [id].nsp", "recent": ["Game [id].nsp"],
+//                  "favorites": ["Game [id].nsp"] },
 //     "games": { "0100000000010000": { "console_mode": "handheld", "renderer": "opengl",
 //                                      "resolution": "0.75x", "upscaling_filter": "fsr",
 //                                      "refresh_rate": "120", "fps_overlay": false,
@@ -122,7 +123,7 @@ static_assert(std::size(kLanguageLabels) == std::size(kLanguageKeys) &&
               std::size(kLanguageSettings) == std::size(kLanguageKeys) &&
               std::size(kLanguageRegions) == std::size(kLanguageKeys));
 // The launcher theme a new install uses: the rose look the launcher always had.
-inline constexpr const char* kDefaultLauncherTheme = "eglantine";
+inline constexpr const char* kDefaultLauncherTheme = "horizon";
 
 // A theme or accent id as the settings file keeps it: short, lowercase letters, digits and '-'.
 inline bool ValidLauncherId(std::string_view id) {
@@ -362,21 +363,55 @@ inline std::string String(const Json& document, const Json::json_pointer& at) {
 }
 } // namespace Settings
 
-inline Preferences LoadPreferences(const std::string& file = SettingsFile()) {
+inline bool Switch2Title(uint64_t title_id) { return (title_id >> 56) == 0x04; }
+
+inline Preferences LoadPreferences(const std::string& file = SettingsFile(), int platform = 0) {
     using Settings::Json;
     const Json document = Settings::Load(file);
     Preferences result;
-    result.hud = Settings::Bool(document, Json::json_pointer("/video/fps_overlay"), result.hud);
-    // A file from before there was a choice names none of these: the overlay then shows what it
-    // showed, with the free memory.
-    const int hud_fields = Settings::Int(document, Json::json_pointer("/video/fps_overlay_fields"), result.hud_fields);
-    if (ValidHudFields(hud_fields)) result.hud_fields = hud_fields;
-    result.hud_size = KeyIndex(Settings::String(document, Json::json_pointer("/video/fps_overlay_size")),
-                               kHudSizeKeys, int(std::size(kHudSizeKeys)), result.hud_size);
-    result.hud_corner = KeyIndex(Settings::String(document, Json::json_pointer("/video/fps_overlay_corner")),
-                                 kHudCornerKeys, int(std::size(kHudCornerKeys)), result.hud_corner);
+    const auto video = [&](const std::string& base) {
+        const auto at = [&](const char* name) { return Json::json_pointer(base + "/video/" + name); };
+        result.hud = Settings::Bool(document, at("fps_overlay"), result.hud);
+        // A file from before there was a choice names none of these: the overlay then shows what it
+        // showed, with the free memory.
+        const int hud_fields = Settings::Int(document, at("fps_overlay_fields"), result.hud_fields);
+        if (ValidHudFields(hud_fields)) result.hud_fields = hud_fields;
+        result.hud_size = KeyIndex(Settings::String(document, at("fps_overlay_size")), kHudSizeKeys,
+                                   int(std::size(kHudSizeKeys)), result.hud_size);
+        result.hud_corner = KeyIndex(Settings::String(document, at("fps_overlay_corner")), kHudCornerKeys,
+                                     int(std::size(kHudCornerKeys)), result.hud_corner);
+        result.resolution = KeyIndex(Settings::String(document, at("resolution")), kResolutionKeys,
+                                     int(std::size(kResolutionKeys)), result.resolution);
+        result.upscaling_filter = KeyIndex(Settings::String(document, at("upscaling_filter")), kUpscalingFilterKeys,
+                                           int(std::size(kUpscalingFilterKeys)), result.upscaling_filter);
+        result.refresh = KeyIndex(Settings::String(document, at("refresh_rate")), kRefreshKeys,
+                                  int(std::size(kRefreshKeys)), result.refresh);
+        result.output = KeyIndex(Settings::String(document, at("output_resolution")), kOutputKeys,
+                                 int(std::size(kOutputKeys)), result.output);
+        result.frame_gen = Settings::Bool(document, at("frame_gen"), result.frame_gen);
+        result.skip_game_aa = Settings::Bool(document, at("skip_game_aa"), result.skip_game_aa);
+        result.frame_gen_type = KeyIndex(Settings::String(document, at("frame_gen_type")), kFrameGenTypeKeys,
+                                         int(std::size(kFrameGenTypeKeys)), result.frame_gen_type);
+        result.frame_gen_target = KeyIndex(Settings::String(document, at("frame_gen_target")), kFrameGenTargetKeys,
+                                           int(std::size(kFrameGenTargetKeys)), result.frame_gen_target);
+        result.frame_gen_multiplier = KeyIndex(Settings::String(document, at("frame_gen_multiplier")),
+                                               kFrameGenMultiplierKeys, int(std::size(kFrameGenMultiplierKeys)),
+                                               result.frame_gen_multiplier);
+    };
+    video("");
     result.backend = Settings::String(document, Json::json_pointer("/video/renderer")) == "opengl" ?
         GraphicsBackend::OpenGL : GraphicsBackend::Vulkan;
+    if (platform == 1) {
+        const Preferences start;
+        result.resolution = start.resolution;
+        result.upscaling_filter = start.upscaling_filter;
+        result.frame_gen = start.frame_gen;
+        result.frame_gen_type = start.frame_gen_type;
+        result.frame_gen_target = start.frame_gen_target;
+        result.frame_gen_multiplier = start.frame_gen_multiplier;
+        result.backend = GraphicsBackend::Vulkan;
+        video("/switch2");
+    }
     const int volume = Settings::Int(document, Json::json_pointer("/audio/volume"), result.volume);
     if (volume >= 0 && volume <= 100) result.volume = volume;
     result.mute = Settings::Bool(document, Json::json_pointer("/audio/mute"), result.mute);
@@ -386,25 +421,6 @@ inline Preferences LoadPreferences(const std::string& file = SettingsFile()) {
                                              result.detailed_logging);
     result.immediate_logs = Settings::Bool(document, Json::json_pointer("/diagnostics/immediate_logs"),
                                            result.immediate_logs);
-    result.resolution = KeyIndex(Settings::String(document, Json::json_pointer("/video/resolution")),
-                                 kResolutionKeys, int(std::size(kResolutionKeys)), result.resolution);
-    result.upscaling_filter = KeyIndex(Settings::String(document, Json::json_pointer("/video/upscaling_filter")),
-                                       kUpscalingFilterKeys, int(std::size(kUpscalingFilterKeys)),
-                                       result.upscaling_filter);
-    result.refresh = KeyIndex(Settings::String(document, Json::json_pointer("/video/refresh_rate")),
-                              kRefreshKeys, int(std::size(kRefreshKeys)), result.refresh);
-    result.output = KeyIndex(Settings::String(document, Json::json_pointer("/video/output_resolution")),
-                             kOutputKeys, int(std::size(kOutputKeys)), result.output);
-    result.frame_gen = Settings::Bool(document, Json::json_pointer("/video/frame_gen"), result.frame_gen);
-    result.skip_game_aa = Settings::Bool(document, Json::json_pointer("/video/skip_game_aa"), result.skip_game_aa);
-    result.frame_gen_type = KeyIndex(Settings::String(document, Json::json_pointer("/video/frame_gen_type")),
-                                     kFrameGenTypeKeys, int(std::size(kFrameGenTypeKeys)), result.frame_gen_type);
-    result.frame_gen_target = KeyIndex(
-        Settings::String(document, Json::json_pointer("/video/frame_gen_target")), kFrameGenTargetKeys,
-        int(std::size(kFrameGenTargetKeys)), result.frame_gen_target);
-    result.frame_gen_multiplier = KeyIndex(
-        Settings::String(document, Json::json_pointer("/video/frame_gen_multiplier")),
-        kFrameGenMultiplierKeys, int(std::size(kFrameGenMultiplierKeys)), result.frame_gen_multiplier);
     result.vibration = Settings::Bool(document, Json::json_pointer("/controls/vibration"), result.vibration);
     // A strength between the steps reads as the step below it; out of range as the nearest end.
     result.vibration_strength = std::clamp(
@@ -423,7 +439,7 @@ inline Preferences LoadPreferences(const std::string& file = SettingsFile()) {
     return result;
 }
 
-inline bool SavePreferences(const Preferences& value, const std::string& file = SettingsFile()) {
+inline bool SavePreferences(const Preferences& value, const std::string& file = SettingsFile(), int platform = 0) {
     if (value.volume < 0 || value.volume > 100 || value.menu_volume < 0 || value.menu_volume > 100 ||
         (value.backend != GraphicsBackend::OpenGL && value.backend != GraphicsBackend::Vulkan) ||
         value.resolution < 0 || value.resolution >= int(std::size(kResolutionKeys)) ||
@@ -439,20 +455,21 @@ inline bool SavePreferences(const Preferences& value, const std::string& file = 
         !ValidLauncherId(value.accent)) return false;
     Settings::Json document = Settings::Load(file);
     document["version"] = 1;
-    document["video"]["renderer"] = value.backend == GraphicsBackend::Vulkan ? "vulkan" : "opengl";
-    document["video"]["fps_overlay"] = value.hud;
-    document["video"]["fps_overlay_fields"] = value.hud_fields;
-    document["video"]["fps_overlay_size"] = kHudSizeKeys[value.hud_size];
-    document["video"]["fps_overlay_corner"] = kHudCornerKeys[value.hud_corner];
-    document["video"]["resolution"] = kResolutionKeys[value.resolution];
-    document["video"]["upscaling_filter"] = kUpscalingFilterKeys[value.upscaling_filter];
-    document["video"]["refresh_rate"] = kRefreshKeys[value.refresh];
-    document["video"]["output_resolution"] = kOutputKeys[value.output];
-    document["video"]["frame_gen"] = value.frame_gen;
-    document["video"]["skip_game_aa"] = value.skip_game_aa;
-    document["video"]["frame_gen_type"] = kFrameGenTypeKeys[value.frame_gen_type];
-    document["video"]["frame_gen_target"] = kFrameGenTargetKeys[value.frame_gen_target];
-    document["video"]["frame_gen_multiplier"] = kFrameGenMultiplierKeys[value.frame_gen_multiplier];
+    auto& video = platform == 1 ? document["switch2"]["video"] : document["video"];
+    if (platform != 1) video["renderer"] = value.backend == GraphicsBackend::Vulkan ? "vulkan" : "opengl";
+    video["fps_overlay"] = value.hud;
+    video["fps_overlay_fields"] = value.hud_fields;
+    video["fps_overlay_size"] = kHudSizeKeys[value.hud_size];
+    video["fps_overlay_corner"] = kHudCornerKeys[value.hud_corner];
+    video["resolution"] = kResolutionKeys[value.resolution];
+    video["upscaling_filter"] = kUpscalingFilterKeys[value.upscaling_filter];
+    video["refresh_rate"] = kRefreshKeys[value.refresh];
+    video["output_resolution"] = kOutputKeys[value.output];
+    video["frame_gen"] = value.frame_gen;
+    video["skip_game_aa"] = value.skip_game_aa;
+    video["frame_gen_type"] = kFrameGenTypeKeys[value.frame_gen_type];
+    video["frame_gen_target"] = kFrameGenTargetKeys[value.frame_gen_target];
+    video["frame_gen_multiplier"] = kFrameGenMultiplierKeys[value.frame_gen_multiplier];
     document["audio"]["volume"] = value.volume;
     document["audio"]["mute"] = value.mute;
     document["audio"]["menu_volume"] = value.menu_volume;
@@ -497,6 +514,47 @@ inline bool SaveGameDocked(uint64_t title_id, bool docked, const std::string& fi
 inline constexpr const char* kPerformanceKeys[] = {"block_list", "async_shaders", "fast_gpu", "unsafe_cpu",
                                                    "unsafe_dma", "reactive_flushing", "skip_invalidation"};
 inline constexpr int kPerformanceSwitches = int(std::size(kPerformanceKeys));
+
+// A recommended profile for one title. -1 leaves the value that arrived from Settings
+// (and, for a Switch 2 title, from the 0400... default below). A saved per-game value
+// still wins: LoadPerformance reads the file after this.
+struct GameProfile {
+    uint64_t title = 0;
+    const char* name = "";
+    int fast_gpu = -1;
+    int reactive_flushing = -1;
+};
+
+// Evidence is the PS5 notes, not a guess at a frame rate.
+// Pokopia: the sky is GPU-computed and read back; Low accuracy signals the fence first
+// (agents/forks/pokopia-amd-mkw.md).
+// Bananza: Low turns the GPU split on. That path was not the measured-safe default;
+// soft HMMA for this title stays in main.cpp.
+// Mario Kart World: the 0400 default (fast GPU, no reactive flushing). Soft HMMA stays off;
+// it was measured slower on this title.
+// Mario Tennis Fever: Low accuracy is what LoadOverrides uses so the split can run
+// (30 to 60 fps in a match, core/game_settings.cpp).
+// The Duskbloods network test reads GPU exposure back on the CPU. Without reactive
+// flushing the picture brightens and darkens every few frames. fast_gpu stays the
+// Switch 2 default; a saved value still wins.
+inline constexpr GameProfile kGameProfiles[] = {
+    {0x0400A3A01EE4C000ULL, "Pokopia", 0, 1},
+    {0x040074A01BF12000ULL, "Donkey Kong Bananza", 0, 1},
+    {0x0400C3F00006E000ULL, "Mario Kart World", 1, 0},
+    {0x0400D4201C6EA000ULL, "Mario Tennis Fever", 1, 0},
+    {0x0400D1D02399A000ULL, "The Duskbloods", -1, 1},
+};
+
+inline const GameProfile* FindGameProfile(uint64_t title_id) {
+    for (const GameProfile& profile : kGameProfiles)
+        if (profile.title == title_id) return &profile;
+    return nullptr;
+}
+
+inline const char* GameProfileName(uint64_t title_id) {
+    const GameProfile* profile = FindGameProfile(title_id);
+    return profile != nullptr ? profile->name : "";
+}
 
 // Library > Game settings: what one game does differently from Settings. Each value is -1 (absent
 // from the file) while the game follows Settings; switches are 0 off, 1 on.
@@ -635,9 +693,39 @@ inline bool SaveGameSettings(uint64_t title_id, const GameSettings& value, const
     return Settings::Write(document, file);
 }
 
+inline bool ProfileApplied(uint64_t title_id, const Settings::Json& document) {
+    if (!title_id) return false;
+    const Settings::Json::json_pointer at("/games/" + Settings::TitleKey(title_id) + "/profile_applied");
+    return document.contains(at) && document.at(at).is_boolean() && document.at(at).get<bool>();
+}
+
+// Writes the recommended profile once. A later "follow Settings" (-1, the key removed) stays
+// removed: the flag records that the profile was already offered.
+inline bool StoreGameProfile(uint64_t title_id, const std::string& file = SettingsFile()) {
+    static_assert(std::string_view(kPerformanceKeys[2]) == "fast_gpu");
+    static_assert(std::string_view(kPerformanceKeys[5]) == "reactive_flushing");
+    const GameProfile* profile = FindGameProfile(title_id);
+    if (profile == nullptr) return false;
+    if (ProfileApplied(title_id, Settings::Load(file))) return false;
+    GameSettings game = LoadGameSettings(title_id, file);
+    const auto fill = [&](int slot, int value) {
+        if (value < 0 || game.performance[static_cast<std::size_t>(slot)] >= 0) return;
+        game.performance[static_cast<std::size_t>(slot)] = value;
+    };
+    fill(2, profile->fast_gpu);
+    fill(5, profile->reactive_flushing);
+    if (!SaveGameSettings(title_id, game, file)) return false;
+    Settings::Json document = Settings::Load(file);
+    document["version"] = 1;
+    auto& node = document["games"][Settings::TitleKey(title_id)];
+    if (!node.is_object()) node = Settings::Json::object();
+    node["profile_applied"] = true;
+    return Settings::Write(document, file);
+}
+
 // The settings a session of a game uses: Settings, with what the game does differently.
 inline Preferences PreferencesFor(uint64_t title_id, const std::string& file = SettingsFile()) {
-    Preferences result = LoadPreferences(file);
+    Preferences result = LoadPreferences(file, Switch2Title(title_id) ? 1 : 0);
     if (!title_id) return result;
     const GameSettings game = LoadGameSettings(title_id, file);
     if (game.renderer >= 0) result.backend = game.renderer == 0 ? GraphicsBackend::OpenGL : GraphicsBackend::Vulkan;
@@ -655,6 +743,7 @@ inline Preferences PreferencesFor(uint64_t title_id, const std::string& file = S
     if (game.language >= 0) result.language = game.language;
     if (game.own_mapping) result.mapping = game.mapping;
     result.controller = game.controller;
+    if (Switch2Title(title_id)) result.backend = GraphicsBackend::Vulkan;
     return result;
 }
 
@@ -676,7 +765,8 @@ struct PerformanceSettings {
     bool skip_invalidation = false;  // Eden's skip_cpu_inner_invalidation: fewer cache invalidations
 };
 
-inline PerformanceSettings LoadPerformance(uint64_t title_id, const std::string& file = SettingsFile()) {
+inline PerformanceSettings LoadPerformance(uint64_t title_id, const std::string& file = SettingsFile(),
+                                           int platform = 0) {
     using Settings::Json;
     const Json document = Settings::Load(file);
     PerformanceSettings result;
@@ -692,14 +782,26 @@ inline PerformanceSettings LoadPerformance(uint64_t title_id, const std::string&
         value("reactive_flushing", result.reactive_flushing);
         value("skip_invalidation", result.skip_invalidation);
     };
-    read("");
     // A Switch 2 title (program ids 0400...) starts from the core's own defaults for its games:
     // the fast GPU fences (gpu_accuracy Low) and no reactive flushing, without which the core's
     // split GPU thread stays off and every fence waits for the host GPU. The game's own values
     // (Triangle in the Library) still win below.
-    if ((title_id >> 56) == 0x04) {
+    if (Switch2Title(title_id) || (!title_id && platform == 1)) {
         result.fast_gpu = true;
         result.reactive_flushing = false;
+        read("/switch2");
+    } else {
+        read("");
+    }
+    // Before the profile has been written, launch still uses it. After that, only the file does.
+    // A key the user removed stays removed: the Switch 2 default (or Settings, for other titles)
+    // applies, and the profile is not put back.
+    if (!ProfileApplied(title_id, document)) {
+        if (const GameProfile* profile = FindGameProfile(title_id)) {
+            if (profile->fast_gpu >= 0) result.fast_gpu = profile->fast_gpu == 1;
+            if (profile->reactive_flushing >= 0)
+                result.reactive_flushing = profile->reactive_flushing == 1;
+        }
     }
     if (title_id) read("/games/" + Settings::TitleKey(title_id));
     return result;
@@ -707,10 +809,11 @@ inline PerformanceSettings LoadPerformance(uint64_t title_id, const std::string&
 
 // Title 0 saves the general values.
 inline bool SavePerformance(uint64_t title_id, const PerformanceSettings& value,
-                            const std::string& file = SettingsFile()) {
+                            const std::string& file = SettingsFile(), int platform = 0) {
     Settings::Json document = Settings::Load(file);
     document["version"] = 1;
-    auto& owner = title_id ? document["games"][Settings::TitleKey(title_id)] : document;
+    auto& owner = title_id ? document["games"][Settings::TitleKey(title_id)] :
+                  platform == 1 ? document["switch2"] : document;
     if (!owner.is_object()) owner = Settings::Json::object();
     // "gpu_clock" and "swap_file" have no switch in the launcher: values set by hand stay
     // (LoadGpuClock, LoadSwapFile).
@@ -873,6 +976,41 @@ inline std::vector<std::string> LoadRecentGames(const std::string& file = Settin
             recent.push_back(name);
     }
     return recent;
+}
+
+// Games pinned to the front of the shelf. Order is the order they were pinned.
+inline std::vector<std::string> LoadFavorites(const std::string& file = SettingsFile()) {
+    using Settings::Json;
+    const Json document = Settings::Load(file);
+    const Json::json_pointer at("/library/favorites");
+    std::vector<std::string> favorites;
+    if (!document.contains(at) || !document.at(at).is_array()) return favorites;
+    for (const auto& entry : document.at(at)) {
+        if (!entry.is_string()) continue;
+        const std::string name = entry.get<std::string>();
+        if (favorites.size() < 24 && ValidRomFilename(name) &&
+            std::find(favorites.begin(), favorites.end(), name) == favorites.end())
+            favorites.push_back(name);
+    }
+    return favorites;
+}
+
+inline bool SetFavorite(std::string_view name, bool on, const std::string& file = SettingsFile()) {
+    if (!ValidRomFilename(name)) return false;
+    auto favorites = LoadFavorites(file);
+    const auto found = std::find(favorites.begin(), favorites.end(), name);
+    if (on) {
+        if (found == favorites.end()) {
+            if (favorites.size() >= 24) return false;
+            favorites.push_back(std::string(name));
+        }
+    } else if (found != favorites.end()) {
+        favorites.erase(found);
+    }
+    Settings::Json document = Settings::Load(file);
+    document["version"] = 1;
+    document["library"]["favorites"] = favorites;
+    return Settings::Write(document, file);
 }
 
 inline bool SaveRecentGame(std::string_view name, const std::string& file = SettingsFile()) {

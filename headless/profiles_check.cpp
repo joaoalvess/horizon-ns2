@@ -150,6 +150,18 @@ int main() {
     assert(Resolve(3, file, settings).current == 0);
     assert(Resolve(99, file, settings).current == 0); // a user who never chose: the one chosen last
 
+    const std::size_t listed = Read(file).size();
+    assert(Claim(3, "Eden", file, settings) && Read(file).size() == listed && Resolve(3, file, settings).current == 0);
+    assert(Claim(42, "Miguel", file, settings));
+    state = Resolve(42, file, settings);
+    assert(state.profiles.size() == listed + 1 && state.profiles[static_cast<std::size_t>(state.current)].name == "Miguel");
+    assert(Resolve(3, file, settings).current == 0 && Resolve(7, file, settings).current == 2);
+    assert(Claim(43, "Miguel", file, settings));
+    state = Resolve(43, file, settings);
+    assert(state.profiles.size() == listed + 2 &&
+           state.profiles[static_cast<std::size_t>(state.current)].name.rfind("Player ", 0) == 0);
+    assert(Claim(-1, "Nobody", file, settings) && Read(file).size() == listed + 2);
+
     // A profile taken off the list takes its settings with it.
     assert(Forget(profiles[2], settings));
     assert(!Eden::Settings::LoadWhole(settings)["profile_settings"].contains(profiles[2].Key()));
@@ -173,6 +185,11 @@ int main() {
     const std::string fresh_settings = std::string(folder) + "/fresh.json";
     state = Resolve(-1, fresh, fresh_settings);
     assert(state.profiles.size() == 1 && state.profiles[0].name == "Player 1" && Read(fresh).size() == 1);
+    assert(Claim(5, "Ana", fresh, fresh_settings) && Read(fresh).size() == 1 && Resolve(5, fresh, fresh_settings).current == 0);
+    assert(Claim(6, "Bia", fresh, fresh_settings));
+    state = Resolve(6, fresh, fresh_settings);
+    assert(state.profiles.size() == 2 && state.current == 1 && state.profiles[1].name == "Bia");
+    assert(Resolve(5, fresh, fresh_settings).current == 0);
 
     std::filesystem::remove_all(folder);
     std::puts("Profiles: Eden's file read and written as it is, the first profile keeps what was there, "

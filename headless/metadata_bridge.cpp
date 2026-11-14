@@ -340,16 +340,20 @@ std::map<uint64_t, AddOns>& ScannedAddOns() {
 }
 }
 
-void eden_scan_addons(const char* updates_dir, const char* keys_dir) {
+void eden_scan_addons(const char* const* updates_dirs, size_t count, const char* keys_dir) {
     auto& scanned = ScannedAddOns();
     scanned.clear();
-    if (!updates_dir || !keys_dir) return;
+    if (!updates_dirs || !keys_dir) return;
     try {
         Common::FS::SetEdenPath(Common::FS::EdenPath::KeysDir, keys_dir);
         FileSys::RealVfsFilesystem vfs;
-        auto directory = vfs.OpenDirectory(updates_dir, FileSys::OpenMode::Read);
-        if (!directory) return;
-        const FileSys::ExternalContentProvider provider({std::move(directory)});
+        std::vector<FileSys::VirtualDir> directories;
+        for (size_t i = 0; i < count; ++i)
+            if (updates_dirs[i])
+                if (auto directory = vfs.OpenDirectory(updates_dirs[i], FileSys::OpenMode::Read))
+                    directories.push_back(std::move(directory));
+        if (directories.empty()) return;
+        const FileSys::ExternalContentProvider provider(std::move(directories));
         for (const auto& entry : provider.ListEntriesFilter(FileSys::TitleType::Update, std::nullopt, std::nullopt)) {
             auto& addons = scanned[FileSys::GetBaseTitleID(entry.title_id)];
             if (!addons.update.empty()) continue;

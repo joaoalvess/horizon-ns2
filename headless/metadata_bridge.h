@@ -35,7 +35,7 @@ int eden_game_language(const char* rom_path, const char* keys_dir, uint64_t titl
 
 // Update and DLC files (NSP or XCI, any depth) in updates_dir, read with the provider that also
 // applies them to a running game. Replaces the previous scan; eden_game_addons queries it.
-void eden_scan_addons(const char* updates_dir, const char* keys_dir);
+void eden_scan_addons(const char* const* updates_dirs, size_t count, const char* keys_dir);
 // The update and DLC files of a game in updates_dir (NSP or XCI, any depth), by the title IDs
 // they hold: each one's full path is handed to found. Returns how many there were.
 typedef void (*eden_found_file)(void* user, const char* path);

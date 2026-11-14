@@ -1250,6 +1250,7 @@ int main(int argc, char** argv) {
             // Speed against accuracy ("performance" in the settings file, settings_store.h): each
             // one is off unless chosen there, for every game or for this one. The levels start
             // every session at their exact values (above), so one that is not chosen is off.
+            Eden::StoreGameProfile(eden_game_title_id(guest));
             const auto speed = Eden::LoadPerformance(eden_game_title_id(guest));
             Settings::values.use_asynchronous_shaders = speed.async_shaders;
             if (speed.fast_gpu) {
@@ -1299,7 +1300,9 @@ int main(int argc, char** argv) {
             // Mods): Eden's patch manager skips the names in this list. With the Library's Mods
             // switch off for the game, every one of them is in it.
             const u64 title = eden_game_title_id(guest);
-            const auto all_mods = Eden::Mods::List(Eden::AssetsPath("mods"), title);
+            if (const std::string mods = Eden::ModsRoot(title); Eden::DirectoryExists(mods))
+                Common::FS::SetEdenPath(Common::FS::EdenPath::LoadDir, mods);
+            const auto all_mods = Eden::Mods::List(Eden::ModsRoot(title), title);
             auto mods_off = Eden::LoadDisabledMods(title);
             if (!Eden::LoadModsEnabled(title)) {
                 for (const auto& mod : all_mods)
@@ -1500,7 +1503,7 @@ int main(int argc, char** argv) {
                 system.SetShuttingDown(false);
                 // Update and DLC files (NSP or XCI) in the game files' updates folder apply to their
                 // base game: Eden's ExternalContentProvider, which the patch manager checks first.
-                Settings::values.external_content_dirs = {Eden::AssetsPath("updates")};
+                Settings::values.external_content_dirs = Eden::UpdatesDirs();
                 system.GetFileSystemController().CreateFactories(*system.GetFilesystem());
                 // The game's own contents, registered as Eden's desktop frontends do before booting a
                 // game (ConfigureFilesystemProvider). An update's data is a patch on the base game's:

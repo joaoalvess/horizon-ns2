@@ -568,9 +568,10 @@ void ToggleHud() {
         if (!SaveGameSettings(title, game)) Report("settings", "Could not save the game's HUD setting");
         return;
     }
-    auto preferences = LoadPreferences();
+    const int platform = Switch2Title(title) ? 1 : 0;
+    auto preferences = LoadPreferences(SettingsFile(), platform);
     preferences.hud = enabled;
-    if (!SavePreferences(preferences)) Report("settings", "Could not save HUD preference");
+    if (!SavePreferences(preferences, SettingsFile(), platform)) Report("settings", "Could not save HUD preference");
 }
 HudSnapshot GetVulkanHud() {
     return vulkan_loading || hud_enabled.load(std::memory_order_relaxed) ? vulkan_hud : HudSnapshot{};

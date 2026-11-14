@@ -127,6 +127,17 @@ int main() {
     for (int i = 0; i < 5; ++i) assert(Eden::SaveRecentGame("Game" + std::to_string(i) + ".nsp", file));
     assert((Eden::LoadRecentGames(file) == std::vector<std::string>{"Game4.nsp", "Game3.nsp", "Game2.nsp", "Game1.nsp"}));
 
+    // Favorites stay in pin order and survive a reload. A bad name is refused.
+    assert(Eden::LoadFavorites(file).empty());
+    assert(Eden::SetFavorite("Kept.nsp", true, file));
+    assert(Eden::SetFavorite("Later.xci", true, file));
+    assert(Eden::SetFavorite("Kept.nsp", true, file));
+    assert((Eden::LoadFavorites(file) == std::vector<std::string>{"Kept.nsp", "Later.xci"}));
+    assert(Eden::SetFavorite("Kept.nsp", false, file));
+    assert((Eden::LoadFavorites(file) == std::vector<std::string>{"Later.xci"}));
+    assert(!Eden::SetFavorite("not-a-rom", true, file));
+    assert((Eden::LoadFavorites(file) == std::vector<std::string>{"Later.xci"}));
+
     // Console mode per title.
     constexpr uint64_t racer = 0x0100000000010000, quest = 0x0100000000030000;
     assert(Eden::LoadGameDocked(racer, file) && Eden::LoadGameDocked(quest, file));
@@ -270,7 +281,7 @@ int main() {
     // The launcher's theme (Settings > Accessibility): Eglantine with its own accent unless
     // another is chosen; an id that is not one is not written, and not read.
     auto theme = Eden::LoadPreferences(file);
-    assert(theme.theme == "eglantine" && theme.accent.empty());
+    assert(theme.theme == "horizon" && theme.accent.empty());
     theme.theme = "slate";
     theme.accent = "ice";
     assert(Eden::SavePreferences(theme, file));
@@ -558,6 +569,104 @@ int main() {
     assert(Eden::LoadSavedAssetsDir(migrated) == "/mnt/ext1/eden");
     assert(!Eden::LoadGameDocked(quest, migrated) && Eden::LoadGameDocked(racer, migrated));
     assert(std::filesystem::exists(folder + "/settings.txt"));
+
+    // Recommended profiles. A Switch 2 title otherwise gets fast GPU and no reactive flushing.
+    // The saved per-game value still wins.
+    const std::string profiles = std::string(directory) + "/profiles.json";
+    constexpr uint64_t pokopia = 0x0400A3A01EE4C000ULL;
+    constexpr uint64_t bananza = 0x040074A01BF12000ULL;
+    constexpr uint64_t kart = 0x0400C3F00006E000ULL;
+    constexpr uint64_t tennis = 0x0400D4201C6EA000ULL;
+    constexpr uint64_t duskbloods = 0x0400D1D02399A000ULL;
+    constexpr uint64_t other = 0x0400AAAAAAAAAAAAULL;
+    assert(std::string(Eden::GameProfileName(pokopia)) == "Pokopia");
+    assert(std::string(Eden::GameProfileName(0)) == "");
+    assert(!Eden::LoadPerformance(pokopia, profiles).fast_gpu &&
+           Eden::LoadPerformance(pokopia, profiles).reactive_flushing);
+    assert(!Eden::LoadPerformance(bananza, profiles).fast_gpu &&
+           Eden::LoadPerformance(bananza, profiles).reactive_flushing);
+    assert(Eden::LoadPerformance(kart, profiles).fast_gpu &&
+           !Eden::LoadPerformance(kart, profiles).reactive_flushing);
+    assert(Eden::LoadPerformance(tennis, profiles).fast_gpu &&
+           !Eden::LoadPerformance(tennis, profiles).reactive_flushing);
+    assert(std::string(Eden::GameProfileName(duskbloods)) == "The Duskbloods");
+    assert(Eden::LoadPerformance(duskbloods, profiles).fast_gpu &&
+           Eden::LoadPerformance(duskbloods, profiles).reactive_flushing);
+    assert(Eden::LoadPerformance(other, profiles).fast_gpu &&
+           !Eden::LoadPerformance(other, profiles).reactive_flushing);
+    assert(!Eden::LoadPerformance(0, profiles).fast_gpu &&
+           Eden::LoadPerformance(0, profiles).reactive_flushing);
+    Eden::PerformanceSettings chosen = Eden::LoadPerformance(pokopia, profiles);
+    chosen.fast_gpu = true;
+    assert(Eden::SavePerformance(pokopia, chosen, profiles));
+    assert(Eden::LoadPerformance(pokopia, profiles).fast_gpu);
+    assert(!Eden::LoadPerformance(bananza, profiles).fast_gpu);
+
+    // The profile is written into the game's own settings, and a value already chosen stays.
+    const std::string seeded = std::string(directory) + "/seeded.json";
+    assert(Eden::LoadGameSettings(pokopia, seeded).performance[2] < 0);
+    assert(Eden::StoreGameProfile(pokopia, seeded));
+    assert(Eden::LoadGameSettings(pokopia, seeded).performance[2] == 0);
+    assert(Eden::LoadGameSettings(pokopia, seeded).performance[5] == 1);
+    assert(!Eden::LoadPerformance(pokopia, seeded).fast_gpu);
+    auto edited = Eden::LoadGameSettings(pokopia, seeded);
+    edited.performance[2] = 1;
+    assert(Eden::SaveGameSettings(pokopia, edited, seeded));
+    assert(!Eden::StoreGameProfile(pokopia, seeded));
+    assert(Eden::LoadGameSettings(pokopia, seeded).performance[2] == 1);
+    // Putting a switch back to "follow Settings" removes the key. The profile is not written again.
+    edited.performance[2] = -1;
+    assert(Eden::SaveGameSettings(pokopia, edited, seeded));
+    assert(!Eden::StoreGameProfile(pokopia, seeded));
+    assert(Eden::LoadGameSettings(pokopia, seeded).performance[2] < 0);
+    assert(Eden::LoadPerformance(pokopia, seeded).fast_gpu);
+    assert(!Eden::StoreGameProfile(other, seeded));
+    assert(Eden::StoreGameProfile(duskbloods, seeded));
+    assert(Eden::LoadGameSettings(duskbloods, seeded).performance[5] == 1);
+    assert(Eden::LoadGameSettings(duskbloods, seeded).performance[2] < 0);
+    auto dusk = Eden::LoadGameSettings(duskbloods, seeded);
+    dusk.performance[5] = 0;
+    assert(Eden::SaveGameSettings(duskbloods, dusk, seeded));
+    assert(!Eden::StoreGameProfile(duskbloods, seeded));
+    assert(!Eden::LoadPerformance(duskbloods, seeded).reactive_flushing);
+    assert(Eden::LoadPerformance(duskbloods, seeded).fast_gpu);
+
+    const std::string platforms = std::string(directory) + "/platforms.json";
+    Eden::Preferences general;
+    general.resolution = 4;
+    general.upscaling_filter = 4;
+    general.frame_gen = true;
+    general.output = 2;
+    general.refresh = 1;
+    general.volume = 55;
+    assert(Eden::SavePreferences(general, platforms));
+    Eden::Preferences second = Eden::LoadPreferences(platforms, 1);
+    assert(second.backend == Eden::GraphicsBackend::Vulkan && second.resolution == Eden::kNativeResolution &&
+           second.upscaling_filter == 0 && !second.frame_gen);
+    assert(second.output == 2 && second.refresh == 1 && second.volume == 55);
+    second.resolution = 3;
+    second.frame_gen = true;
+    second.volume = 60;
+    assert(Eden::SavePreferences(second, platforms, 1));
+    assert(Eden::LoadPreferences(platforms).resolution == 4);
+    assert(Eden::LoadPreferences(platforms, 1).resolution == 3 && Eden::LoadPreferences(platforms, 1).frame_gen);
+    assert(Eden::LoadPreferences(platforms).volume == 60);
+    assert(Eden::PreferencesFor(kart, platforms).resolution == 3 &&
+           Eden::PreferencesFor(kart, platforms).backend == Eden::GraphicsBackend::Vulkan);
+    assert(Eden::PreferencesFor(quest, platforms).resolution == 4);
+
+    Eden::PerformanceSettings everyone;
+    everyone.async_shaders = true;
+    assert(Eden::SavePerformance(0, everyone, platforms));
+    assert(!Eden::LoadPerformance(0, platforms, 1).async_shaders && Eden::LoadPerformance(0, platforms, 1).fast_gpu &&
+           !Eden::LoadPerformance(0, platforms, 1).reactive_flushing);
+    assert(!Eden::LoadPerformance(other, platforms).async_shaders);
+    Eden::PerformanceSettings switch2 = Eden::LoadPerformance(0, platforms, 1);
+    switch2.unsafe_cpu = true;
+    assert(Eden::SavePerformance(0, switch2, platforms, 1));
+    assert(Eden::LoadPerformance(other, platforms).unsafe_cpu && !Eden::LoadPerformance(quest, platforms).unsafe_cpu);
+    assert(Eden::LoadPerformance(0, platforms).async_shaders && !Eden::LoadPerformance(0, platforms).unsafe_cpu);
+    std::puts("Switch 2: its own video and performance, Vulkan only, the rest shared PASS");
 
     std::filesystem::remove_all(directory);
     std::filesystem::remove_all(legacy);

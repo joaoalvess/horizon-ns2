@@ -225,6 +225,26 @@ inline bool Forget(const Profile& profile, const std::string& settings = Setting
     return Settings::WriteWhole(whole, settings);
 }
 
+inline bool Claim(int user, std::string_view name, const std::string& file = File(),
+                  const std::string& settings = SettingsFile()) {
+    if (user < 0) return true;
+    State state = Resolve(-1, file, settings);
+    if (state.profiles.empty()) return false;
+    const Settings::Json document = Settings::LoadWhole(settings);
+    const std::string own = "/profiles/users/" + std::to_string(user);
+    if (IndexOf(state.profiles, SettingsValue(document, own.c_str())) >= 0) return true;
+    const Settings::Json::json_pointer users("/profiles/users");
+    const bool anyone = document.contains(users) && document.at(users).is_object() && !document.at(users).empty();
+    if (!anyone) return Choose(state.profiles[static_cast<std::size_t>(state.current)], user, settings);
+    if (state.profiles.size() >= kMax) return false;
+    const std::string fitted = FitName(name);
+    const bool taken = fitted.empty() || std::any_of(state.profiles.begin(), state.profiles.end(),
+                                                     [&](const Profile& p) { return p.name == fitted; });
+    state.profiles.push_back(Make(taken ? FreeName(state.profiles) : fitted));
+    if (!Write(state.profiles, file)) return false;
+    return Seed(state.profiles.back(), settings) && Choose(state.profiles.back(), user, settings);
+}
+
 // The chosen profile's place in Eden's list (Settings::values.current_user), for a game start.
 inline int CurrentIndex(const std::string& file = File(), const std::string& settings = SettingsFile()) {
     const std::vector<Profile> profiles = Read(file);
