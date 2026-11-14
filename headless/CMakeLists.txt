@@ -308,6 +308,15 @@ else()
     target_include_directories(eden-mods-check PRIVATE "${PROJECT_SOURCE_DIR}/src")
     target_link_libraries(eden-mods-check PRIVATE core)
     target_compile_options(eden-mods-check PRIVATE -fno-rtti)
+    add_library(eden-cnx-miniz STATIC
+        "${PORT_ROOT}/third_party/miniz/miniz.c"
+        "${PORT_ROOT}/third_party/miniz/miniz_tdef.c"
+        "${PORT_ROOT}/third_party/miniz/miniz_tinfl.c"
+        "${PORT_ROOT}/third_party/miniz/miniz_zip.c")
+    target_include_directories(eden-cnx-miniz PUBLIC "${PORT_ROOT}/third_party/miniz")
+    target_compile_options(eden-cnx-miniz PRIVATE -w)
+    add_executable(eden-cnx-check "${EDEN_PORT_DIR}/cnx_check.cpp" "${EDEN_PORT_DIR}/cnx.cpp" "${EDEN_PORT_DIR}/mega.cpp")
+    target_link_libraries(eden-cnx-check PRIVATE nlohmann_json::nlohmann_json eden-cnx-miniz OpenSSL::Crypto)
     # The settings store's check is written with assert(): they stay in a release build.
     add_executable(eden-settings-check "${EDEN_PORT_DIR}/preferences_check.cpp")
     target_link_libraries(eden-settings-check PRIVATE core)
@@ -485,6 +494,9 @@ endif()
                 "${EDEN_PORT_DIR}/multiplayer_directory.cpp"
                 "${launcher_dir}/frontend.cpp"
                 "${launcher_dir}/eden_services.cpp"
+                "${launcher_dir}/eden_cnx.cpp"
+                "${EDEN_PORT_DIR}/cnx.cpp"
+                "${EDEN_PORT_DIR}/mega.cpp"
                 "${launcher_dir}/pe/audio/mixer.cpp"
                 "${launcher_dir}/pe/audio/sounds.cpp"
                 "${launcher_dir}/pe/audio/wav.cpp"
@@ -512,6 +524,7 @@ endif()
                 "${launcher_dir}/pe/ui/launcher.cpp"
                 "${launcher_dir}/pe/ui/library.cpp"
                 "${launcher_dir}/pe/ui/settings.cpp"
+                "${launcher_dir}/pe/ui/translations.cpp"
                 "${launcher_dir}/pe/ui/textures.cpp"
                 "${launcher_dir}/pe/ui/theme.cpp"
                 "${launcher_dir}/pe/ui/widgets.cpp")
@@ -543,6 +556,7 @@ endif()
             # these files only: the prefix it is in has older FFmpeg headers as well.
             set_source_files_properties("${EDEN_PORT_DIR}/remote/save_archive.cpp"
                 "${EDEN_PORT_DIR}/remote/stream_check.cpp"
+                "${EDEN_PORT_DIR}/mega.cpp"
                 PROPERTIES INCLUDE_DIRECTORIES "${OPENSSL_INCLUDE_DIR}")
             # The update check (update_notice.h). Its network side is the boilerplate's
             # update_check.c and console_curl.c with libcurl and libpsl from the pinned PacBrew
