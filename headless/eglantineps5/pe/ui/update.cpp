@@ -658,7 +658,7 @@ void Launcher::draw_update(Canvas &c, float open)
             // A bright head at the arc's end.
             const float a = -kPi * 0.5f + 2.0f * kPi * share;
             list.circle(kCenterX + kRingRadius * std::cos(a), kRingY + kRingRadius * std::sin(a), kRingWidth * 0.9f,
-                        th().accent_pale.with_alpha(0.9f));
+                        th().accent_deep);
             const int percent = static_cast<int>(share * 100.0f + 0.5f);
             text(c, fill_text(tr("{0}%"), std::to_string(std::min(percent, 100))), kCenterX,
                  baseline(kRingY - 30.0f, 60.0f, th().size_display), th().size_display, th().title, Align::center);
@@ -695,7 +695,7 @@ void Launcher::draw_update(Canvas &c, float open)
             const float sheen = std::fmod(update_spin_ * 0.6f, 1.0f);
             const float sx = bar.x + bar.w * share * sheen;
             list.push_clip({bar.x, bar.y, bar.w * share, bar.h});
-            list.rounded_rect({sx - 40.0f, bar.y, 80.0f, bar.h}, 4.0f, th().accent_pale.with_alpha(0.45f));
+            list.rounded_rect({sx - 40.0f, bar.y, 80.0f, bar.h}, 4.0f, th().panel.with_alpha(0.45f));
             list.pop_clip();
         }
         else

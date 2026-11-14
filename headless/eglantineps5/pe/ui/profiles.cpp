@@ -25,7 +25,6 @@ constexpr float kRowHeight = 94.0f;
 constexpr int kRowsShown = 5;
 constexpr Rect kWindow{592.0f, kRowsTop, 736.0f, kRowPitch * (kRowsShown - 1) + kRowHeight};
 constexpr float kHints = 848.0f;
-constexpr int kMostProfiles = 8;
 
 } // namespace
 
@@ -40,9 +39,7 @@ void Launcher::read_profiles()
 
 int Launcher::profile_row_count() const
 {
-    // The profiles, then "New profile" while there is room for one.
-    const int count = static_cast<int>(profiles_.size());
-    return count < kMostProfiles ? count + 1 : count;
+    return static_cast<int>(profiles_.size());
 }
 
 void Launcher::open_profiles()
@@ -119,7 +116,7 @@ void Launcher::press_profiles(Key key)
         }
         read_profiles();
         // Its settings, its game on the home screen and its recently played games are its own.
-        prefs_ = services_.preferences();
+        prefs_ = services_.preferences(platform_);
         apply_look();
         read_home();
         say(fill(tr("Playing as {0}"), {playing_}));
@@ -183,7 +180,7 @@ void Launcher::draw_profiles(Canvas &c, float open)
     text_shrink(c, tr("Profiles"), 592.0f, baseline(218.0f, 62.0f, th().size_display), th().size_display,
                 th().title, 736.0f);
     text_shrink(c, tr("Each profile keeps its own save data, settings and recent games."), 592.0f,
-                baseline(291.0f, 32.0f, th().size_small), th().size_small, th().note, 736.0f);
+                baseline(291.0f, 32.0f, th().size_small), th().size_small, th().meta, 736.0f);
 
     const int count = static_cast<int>(profiles_.size());
     list.push_clip({kWindow.x - 24.0f, kWindow.y - 6.0f, kWindow.w + 48.0f, kWindow.h + 12.0f});
@@ -239,11 +236,8 @@ void Launcher::draw_profiles(Canvas &c, float open)
     }
     else
     {
-        static constexpr Hint kHintsRow[] = {{Pad::cross, TR("Play as")},
-                                             {Pad::leftright, TR("Rename")},
-                                             {Pad::square, TR("Remove")},
-                                             {Pad::circle, TR("Back")}};
-        draw_hints(c, kHintsRow, 4, 592.0f, kHints, th().copy, 736.0f);
+        static constexpr Hint kHintsRow[] = {{Pad::leftright, TR("Rename")}, {Pad::circle, TR("Back")}};
+        draw_hints(c, kHintsRow, 2, 592.0f, kHints, th().copy, 736.0f);
     }
     list.pop_transform();
     list.pop_opacity();

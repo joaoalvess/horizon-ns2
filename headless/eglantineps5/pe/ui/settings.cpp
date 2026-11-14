@@ -16,11 +16,10 @@ using audio::Cue;
 namespace
 {
 
-constexpr Rect kListPanel{108.0f, 188.0f, 820.0f, 720.0f};
-constexpr Rect kDetailPanel{980.0f, 188.0f, 820.0f, 720.0f};
+constexpr Rect kNav{96.0f, 156.0f, 420.0f, 750.0f};
+constexpr float kNavRow = 46.0f;
+constexpr Rect kPanelRect{564.0f, 156.0f, 1260.0f, 750.0f};
 constexpr Rect kDialog{550.0f, 180.0f, 820.0f, 720.0f};
-constexpr float kRowsTop = 264.0f;
-constexpr float kRowHeight = 46.0f;
 enum Category
 {
     kProfiles,
@@ -36,15 +35,17 @@ enum Category
     kSaveSync,
     kMultiplayer,
     kLanguage,
+    kTranslations,
+    kAbout,
     kCategoryCount,
 };
 constexpr const char *kCategories[kCategoryCount] = {
     TR("Profiles"), TR("Video"), TR("Performance"), TR("Audio"), TR("Controls"), TR("Accessibility"),
-    TR("Diagnostics"), TR("Game files"), TR("Downloads"), TR("NFS shares"), TR("Save sync"), TR("Multiplayer"), TR("Language")};
+    TR("Diagnostics"), TR("Game files"), TR("Downloads"), TR("NFS shares"), TR("Save sync"), TR("Multiplayer"), TR("Language"), TR("PT-BR translations"), TR("About")};
 // The same as headings: capitals differ by language, so each is its own text.
 constexpr const char *kHeadings[kCategoryCount] = {
     TR("PROFILES"), TR("VIDEO"), TR("PERFORMANCE"), TR("AUDIO"), TR("CONTROLS"), TR("ACCESSIBILITY"),
-    TR("DIAGNOSTICS"), TR("GAME FILES"), TR("DOWNLOADS"), TR("NFS SHARES"), TR("SAVE SYNC"), TR("MULTIPLAYER"), TR("LANGUAGE")};
+    TR("DIAGNOSTICS"), TR("GAME FILES"), TR("DOWNLOADS"), TR("NFS SHARES"), TR("SAVE SYNC"), TR("MULTIPLAYER"), TR("LANGUAGE"), TR("PT-BR TRANSLATIONS"), TR("ABOUT")};
 
 // The Video dialog's rows, and the window that shows five of them (placed as a game's settings
 // are).
@@ -161,6 +162,11 @@ std::string short_path(const std::string &path, std::size_t limit)
 
 } // namespace
 
+int Launcher::settings_rows()
+{
+    return kCategoryCount;
+}
+
 void Launcher::press_settings(Key key)
 {
     // The keyboard (or the connection that follows it) is open: Circle takes it away, nothing else is for this screen.
@@ -174,6 +180,10 @@ void Launcher::press_settings(Key key)
     {
     case Key::circle:
         open(Screen::home, false);
+        return;
+    case Key::l1:
+    case Key::r1:
+        choose_platform(key == Key::r1 ? 1 : 0);
         return;
     case Key::up:
     case Key::down:
@@ -210,6 +220,12 @@ void Launcher::press_settings(Key key)
             break;
         case kMultiplayer:
             open_multiplayer();
+            break;
+        case kTranslations:
+            open_translations();
+            break;
+        case kAbout:
+            open(Screen::about, true);
             break;
         case kVideo:
             open_modal(Modal::video);
@@ -248,69 +264,50 @@ void Launcher::press_settings(Key key)
 void Launcher::draw_settings(Canvas &c)
 {
     gfx::DrawList &list = c.list;
-    draw_frame(c, tr("Settings"), tr("Fine-tune your experience"));
+    draw_profile_bar(c, false);
 
     // ---- categories ----
-    glass(c, kListPanel, 26.0f, th().panel.with_alpha(0.80f), th().panel_edge.with_alpha(0.55f));
-    text(c, tr("PREFERENCES"), 138.0f, baseline(208.0f, 28.0f, th().size_small), th().size_small,
-         th().accent_pale, Align::left, 3.0f);
     const auto row_rect = [&](int row) -> Rect
-    { return {150.0f, kRowsTop + settings_.pitch * static_cast<float>(row), 736.0f, kRowHeight}; };
-    for (int row = 0; row < kCategoryCount; ++row)
-        plate_rest(c, row_plate(), row_rect(row));
-    plate_focus(c, row_plate(), {150.0f, kRowsTop + settings_.cursor(), 736.0f, kRowHeight}, 1.0f);
-    const std::string summaries[kCategoryCount] = {
-        playing_,
-        prefs_.renderer != 0 ? "Vulkan" : "OpenGL",
-        prefs_.async_shaders || prefs_.fast_gpu || prefs_.unsafe_cpu || prefs_.unsafe_dma ||
-                !prefs_.reactive_flushing || prefs_.skip_invalidation ? tr("On") : "",
-        prefs_.mute ? tr("Muted") : percent(prefs_.volume),
-        prefs_.vibration ? tr("Vibration on") : tr("Vibration off"),
-        prefs_.large_text || prefs_.high_contrast || prefs_.reduce_motion ? tr("On") : "",
-        prefs_.detailed_logging ? tr("Detailed logs on") : prefs_.immediate_logs ? tr("On") : "",
-        "",
-        !sources_.configured ? std::string{tr("Not set up")} :
-        sources_.list.size() == 1 ? sources_.list.front().name :
-                                    fill(tr("{0} sources"), {std::to_string(sources_.list.size())}),
-        nfs_shares_.empty() ? std::string{tr("Off")} :
-                              fill(tr("{0} shares"), {std::to_string(1 + std::count(nfs_shares_.begin(), nfs_shares_.end(), '\n'))}),
-        [&] {
-            int linked = 0;
-            for (const SaveSyncProfile &profile : sync_setup_.profiles)
-                linked += profile.linked ? 1 : 0;
-            return linked == 0 ? std::string{tr("Off")} : fill(tr("{0} of {1} profiles"), {std::to_string(linked),
-                                                                                           std::to_string(sync_setup_.profiles.size())});
-        }(),
-        services_.room_status().phase == Eden::Multiplayer::Phase::Connected ? tr("Connected") : tr("Off"),
-        pick(services_.language_labels(), prefs_.language),
+    {
+        return {kNav.x, kNav.y + settings_.pitch * static_cast<float>(row) - settings_.scroll(), kNav.w, kNavRow};
     };
-    for (int row = 0; row < kCategoryCount; ++row)
+    list.push_clip({kNav.x - 24.0f, kNav.y - 8.0f, kNav.w + 48.0f,
+                    settings_.pitch * static_cast<float>(settings_.visible) + 16.0f});
+    const Rect on{kNav.x, kNav.y + settings_.cursor() - settings_.scroll(), kNav.w, kNavRow};
+    list.shadow({on.x + 4.0f, on.y + 6.0f, on.w - 8.0f, on.h}, 16.0f, 18.0f, th().scrim.with_alpha(0.08f));
+    list.rounded_rect(on, 16.0f, th().panel);
+    list.rounded_rect({on.x + on.w - 28.0f, on.y + (on.h - 32.0f) * 0.5f, 8.0f, 32.0f}, 4.0f, th().accent);
+    for (int row = settings_.first_row(); row <= settings_.last_row(); ++row)
     {
         const Rect r = row_rect(row);
-        // What the category is set to, then a chevron: there is more behind the row.
-        const float summary =
-            text_shrink(c, summaries[row], r.x + r.w - 62.0f, baseline(r.y, r.h, th().size_small),
-                        th().size_small, th().meta, 330.0f, Align::right);
-        text_shrink(c, tr(kCategories[row]), r.x + 36.0f, baseline(r.y, r.h, th().size_text),
-                    th().size_text, th().value, r.w - 36.0f - 62.0f - summary - 24.0f);
-        const float cx = r.x + r.w - 34.0f;
-        const float cy = r.y + r.h * 0.5f;
-        const Color ink = th().accent_pale.with_alpha(row == settings_.selected ? 0.95f : 0.4f);
-        list.line(cx - 4.0f, cy - 8.0f, cx + 4.0f, cy, 2.2f, ink);
-        list.line(cx + 4.0f, cy, cx - 4.0f, cy + 8.0f, 2.2f, ink);
+        text_shrink(c, tr(kCategories[row]), r.x + 24.0f, baseline(r.y, r.h, th().size_text), th().size_text,
+                    row == settings_.selected ? th().title : th().meta, r.w - 24.0f - 56.0f);
     }
+    list.pop_clip();
 
     // ---- what the focused category holds ----
-    glass(c, kDetailPanel, 26.0f, th().panel.with_alpha(0.80f),
-          th().panel_edge.with_alpha(0.55f));
-    text(c, tr("ON THIS CONSOLE"), 1016.0f, baseline(210.0f, 28.0f, th().size_small), th().size_small,
-         th().accent_pale, Align::left, 3.0f);
-    text_shrink(c, tr("Make it yours."), 1016.0f, baseline(258.0f, 54.0f, th().size_lead),
-                th().size_lead, th().title, 748.0f);
-    text_block(c, tr("Adjust the essentials without leaving your library behind."), 1016.0f,
-               baseline(332.0f, 36.0f, th().size_text), th().size_text, 36.0f, th().copy, 748.0f,
-               2, kShrink);
-    list.rounded_rect({1016.0f, 432.0f, 748.0f, 1.0f}, 0.0f, th().rule);
+    glass(c, kPanelRect, 26.0f, th().panel, th().panel_edge, 1.0f);
+    const float left = kPanelRect.x + 56.0f;
+    const float right = kPanelRect.x + kPanelRect.w - 56.0f;
+    const std::string names[2] = {"Switch", "Switch 2"};
+    float pill[2];
+    for (int i = 0; i < 2; ++i)
+        pill[i] = text_width(c, names[i], 19.0f) + 48.0f;
+    const Rect track{right - pill[0] - pill[1] - 10.0f, kPanelRect.y + 40.0f, pill[0] + pill[1] + 10.0f, 50.0f};
+    list.rounded_rect(track, 25.0f, th().row_edge);
+    float px = track.x + 5.0f;
+    for (int i = 0; i < 2; ++i)
+    {
+        const Rect r{px, track.y + 5.0f, pill[i], 40.0f};
+        if (platform_ == i)
+        {
+            list.shadow({r.x + 2.0f, r.y + 3.0f, r.w - 4.0f, r.h}, 20.0f, 10.0f, th().scrim.with_alpha(0.08f));
+            list.rounded_rect(r, 20.0f, th().panel);
+        }
+        text(c, names[i], r.x + r.w * 0.5f, baseline(r.y, r.h, 19.0f), 19.0f,
+             platform_ == i ? th().title : th().meta, Align::center);
+        px += pill[i];
+    }
 
     struct Line
     {
@@ -325,7 +322,7 @@ void Launcher::draw_settings(Canvas &c)
     {
     case kProfiles:
         about = tr("Who is playing. Each profile keeps its own save data and settings.");
-        lines = {{tr("PLAYING"), playing_}, {tr("PROFILES"), std::to_string(profiles_.size())}};
+        lines = {{tr("PLAYING"), playing_}};
         break;
     case kVideo:
         about = tr("Graphics backend and how games are scaled to your TV.");
@@ -435,6 +432,15 @@ void Launcher::draw_settings(Canvas &c)
         lines = {{tr("PUBLIC ROOMS"), tr("Browse the public directory")},
                  {tr("PRIVATE ROOM"), tr("Room address and UDP port")}};
         break;
+    case kTranslations:
+        about = tr("Community PT-BR translations, installed directly on this console.");
+        lines = {{"CNX", fill(tr("{0} translations"), {std::to_string(translations_.list.size())})},
+                 {tr("GAME FILES"), short_path(folder, 34)}};
+        break;
+    case kAbout:
+        about = tr("Credits and setup");
+        lines = {{tr("VERSION"), version_}};
+        break;
     default:
         about = tr("The language games use when they offer it.");
         lines = {{tr("LANGUAGE"), pick(services_.language_labels(), prefs_.language)},
@@ -444,28 +450,29 @@ void Launcher::draw_settings(Canvas &c)
     const float shown = tween::clamp01(section_.value);
     list.push_opacity(shown);
     list.push_transform(1.0f, 0.0f, 0.0f, 0.0f, (1.0f - shown) * 10.0f * motion());
-    text(c, tr(kHeadings[settings_.selected]), 1016.0f, baseline(458.0f, 30.0f, th().size_small),
-         th().size_small, th().accent, Align::left, 3.0f);
-    text_shrink(c, about, 1016.0f, baseline(494.0f, 32.0f, 22.0f), 22.0f, th().copy, 748.0f);
-    // Five lines sit 62 apart; Video's six and Performance's seven move closer to stay inside
-    // the panel.
-    const float pitch = lines.size() > 6 ? 46.0f : lines.size() > 5 ? 52.0f : 62.0f;
+    text_shrink(c, tr(kCategories[settings_.selected]), left, kPanelRect.y + 76.0f, 34.0f, th().title,
+                track.x - left - 32.0f);
+    text_shrink(c, about, left, kPanelRect.y + 116.0f, th().size_small, th().meta, right - left);
+    text(c, tr(kHeadings[settings_.selected]), left, kPanelRect.y + 184.0f, 16.0f, th().faint, Align::left,
+         3.0f);
     for (std::size_t i = 0; i < lines.size(); ++i)
     {
-        const float top = 562.0f + pitch * static_cast<float>(i);
-        const float value =
-            text_shrink(c, lines[i].value, 1764.0f, baseline(top, 36.0f, th().size_text),
-                        th().size_text, th().value, 470.0f, Align::right);
-        text_shrink(c, lines[i].label, 1016.0f, baseline(top, 36.0f, th().size_small), th().size_small,
-                    th().label, 748.0f - value - 24.0f, Align::left, 2.0f);
-        list.rounded_rect({1016.0f, top + 48.0f, 748.0f, 1.0f}, 0.0f, th().rule.with_alpha(0.45f));
+        const Rect r{left, kPanelRect.y + 208.0f + 74.0f * static_cast<float>(i), right - left, 66.0f};
+        list.rounded_rect(r, 14.0f, th().row);
+        const float value = text_shrink(c, lines[i].value, r.x + r.w - 28.0f, baseline(r.y, r.h, th().size_text),
+                                        th().size_text, th().value, 620.0f, Align::right);
+        text_shrink(c, lines[i].label, r.x + 28.0f, baseline(r.y, r.h, th().size_small), th().size_small,
+                    th().label, r.w - 56.0f - value - 24.0f, Align::left, 2.0f);
     }
     list.pop_transform();
     list.pop_opacity();
 
-    static constexpr Hint kHints[] = {
-        {Pad::cross, TR("Select")}, {Pad::circle, TR("Back")}, {Pad::updown, TR("Browse settings")}};
-    draw_footer(c, kHints, 3);
+    const float hints_x = draw_brand_bar(c);
+    static constexpr Hint kHints[] = {{Pad::cross, TR("Select")},
+                                      {Pad::circle, TR("Back")},
+                                      {Pad::updown, TR("Browse settings")},
+                                      {Pad::l1, TR("Switch / Switch 2"), Pad::r1}};
+    draw_hints(c, kHints, 4, hints_x, 982.0f, th().muted, 1800.0f - hints_x);
 }
 
 // ---------------------------------------------------------------- dialogs
@@ -494,7 +501,9 @@ int Launcher::dialog_rows(Modal modal) const
         // builds that move saves.
         // A game a download source has can be deleted from the console (and downloaded again).
         return (services_.save_transfer_available() ? 9 : 8) +
-               (library_.selected < static_cast<int>(games_.size()) &&
+               (library_.selected >= 0 && library_.selected < static_cast<int>(games_.size()) &&
+                        translation_of(games_[static_cast<std::size_t>(library_.selected)].title_id) != nullptr ? 1 : 0) +
+               (library_.selected >= 0 && library_.selected < static_cast<int>(games_.size()) &&
                         !games_[static_cast<std::size_t>(library_.selected)].sources.empty() &&
                         !games_[static_cast<std::size_t>(library_.selected)].remote ? 1 : 0);
     case Modal::controls:     // vibration, its strength, the button mapping
@@ -729,11 +738,13 @@ void Launcher::draw_dialog(Canvas &c, Modal modal, float open)
     {
     case Modal::video:
         title = tr("Video");
-        copy = tr("How games are drawn and scaled to your TV.");
+        copy = platform_ == 1 ? tr("How Switch 2 games are drawn and scaled to your TV.")
+                              : tr("How games are drawn and scaled to your TV.");
         break;
     case Modal::performance:
         title = tr("Performance");
-        copy = tr("Faster games, at some cost in accuracy.");
+        copy = platform_ == 1 ? tr("Faster Switch 2 games, at some cost in accuracy.")
+                              : tr("Faster games, at some cost in accuracy.");
         break;
     case Modal::audio:
         title = tr("Audio");
@@ -755,7 +766,7 @@ void Launcher::draw_dialog(Canvas &c, Modal modal, float open)
     text_shrink(c, title, 592.0f, baseline(218.0f, 62.0f, th().size_display), th().size_display,
                 th().title, 736.0f);
     text_shrink(c, copy, 592.0f, baseline(291.0f, 32.0f, th().size_small), th().size_small,
-                th().note, 736.0f);
+                th().meta, 736.0f);
 
     const int rows = dialog_rows(modal);
     // Video's rows scroll in a window of five, Performance's and Accessibility's in one of four;
@@ -902,8 +913,8 @@ void Launcher::draw_dialog(Canvas &c, Modal modal, float open)
         {
             // Close together, so that the three rows below still end above the hints.
             const float top = 350.0f + 66.0f * static_cast<float>(i);
-            list.bordered_rect({592.0f, top, 186.0f, 54.0f}, 12.0f, th().list_row.with_alpha(0.9f),
-                               1.0f, th().row_edge.with_alpha(0.6f));
+            list.bordered_rect({592.0f, top, 186.0f, 54.0f}, 12.0f, th().panel,
+                               1.5f, th().toggle_track);
             text_shrink(c, std::string(tr("Touchpad")) + kShortcuts[i].key, 685.0f,
                         baseline(top, 54.0f, th().size_small), th().size_small, th().accent_pale, 170.0f,
                         Align::center);

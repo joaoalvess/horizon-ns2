@@ -139,6 +139,124 @@ struct Stage
     }
 };
 
+void cnx_pictures(Stage &s)
+{
+    const auto local = s.services.games().front();
+    s.services.cnx.list = {
+        {local.name, "53.7 MB", "", local.title_id, false, false},
+        {"A Manual Translation", "622 KB", "", 0x0100C00000001000ULL, true, false},
+        {"B Inconsistent Metadata", "464 MB", "Os Title IDs dos metadados CNX são inconsistentes.",
+         0x0100C00000002000ULL, false, false},
+    };
+    for (int i = 3; i < 128; ++i)
+        s.services.cnx.list.push_back({"Community game " + std::to_string(i), "12.5 MB", "",
+                                       0x0100D00000000000ULL + static_cast<std::uint64_t>(i) * 0x1000, false, false});
+    s.services.cnx.generation = 1;
+    s.services.cnx.cached = true;
+    s.restart();
+    s.wait(1.0f);
+    s.press({Key::down, Key::right, Key::cross, Key::up});
+    s.wait(0.8f);
+    s.shoot("cnx-settings");
+    s.press({Key::cross});
+    s.wait(0.8f);
+    s.shoot("cnx-available");
+    s.press({Key::cross});
+    s.wait(0.8f);
+    s.shoot("cnx-installed");
+    if (!s.services.cnx.list.front().managed)
+    {
+        std::fprintf(stderr, "CNX preview failed: install action did not reach the service\n");
+        s.ok = false;
+    }
+    s.press({Key::cross});
+    s.wait(0.8f);
+    if (s.services.cnx.list.front().managed)
+    {
+        std::fprintf(stderr, "CNX preview failed: remove action did not reach the service\n");
+        s.ok = false;
+    }
+    s.press({Key::down, Key::cross});
+    s.wait(0.8f);
+    s.shoot("cnx-manual");
+    if (!s.services.cnx.list[1].installed || s.services.cnx.list[1].managed)
+    {
+        std::fprintf(stderr, "CNX preview failed: manual installation was changed\n");
+        s.ok = false;
+    }
+    s.press({Key::down, Key::cross});
+    s.wait(0.8f);
+    s.shoot("cnx-invalid");
+    if (s.services.cnx.list[2].installed)
+    {
+        std::fprintf(stderr, "CNX preview failed: inconsistent metadata allowed installation\n");
+        s.ok = false;
+    }
+    s.services.cnx.loading = true;
+    s.wait(0.8f);
+    s.shoot("cnx-refreshing");
+    s.services.cnx.loading = false;
+    s.services.cnx.busy = true;
+    s.services.cnx.active_title = local.title_id;
+    s.press({Key::up, Key::up});
+    s.wait(0.8f);
+    s.shoot("cnx-working");
+    s.services.cnx.busy = false;
+    s.restart();
+    s.wait(1.0f);
+    s.press({Key::down, Key::cross, Key::triangle});
+    for (int i = 0; i < 8; ++i)
+        s.press({Key::down});
+    s.wait(0.8f);
+    s.shoot("cnx-game");
+    s.press({Key::cross});
+    s.wait(0.8f);
+    if (!s.services.cnx.list.front().managed)
+    {
+        std::fprintf(stderr, "CNX preview failed: game action did not install the translation\n");
+        s.ok = false;
+    }
+    s.press({Key::cross});
+    s.wait(0.8f);
+    s.press({Key::up, Key::cross});
+    s.wait(0.8f);
+    s.shoot("cnx-mods");
+    s.press({Key::cross});
+    s.wait(0.8f);
+    s.shoot("cnx-mods-installed");
+    if (!s.services.cnx.list.front().managed)
+    {
+        std::fprintf(stderr, "CNX preview failed: Mods action did not install the translation\n");
+        s.ok = false;
+    }
+    s.press({Key::triangle});
+    s.wait(0.8f);
+    s.shoot("cnx-from-mods");
+    s.press({Key::circle});
+    s.wait(0.8f);
+    s.shoot("cnx-back-to-mods");
+    s.services.cnx.busy = true;
+    s.restart();
+    s.wait(1.0f);
+    s.press({Key::cross});
+    if (!s.launcher->selected_game().empty())
+    {
+        std::fprintf(stderr, "CNX preview failed: a game launched during installation\n");
+        s.ok = false;
+    }
+    s.shoot("cnx-launch-waits");
+    s.services.cnx.busy = false;
+    s.services.cnx.list.clear();
+    s.services.cnx.cached = false;
+    s.services.cnx.error = "Não foi possível baixar os dados do CNX.";
+    ++s.services.cnx.generation;
+    s.restart();
+    s.wait(1.0f);
+    s.press({Key::down, Key::right, Key::cross, Key::up, Key::cross});
+    s.wait(0.8f);
+    s.shoot("cnx-offline-empty");
+}
+
 void pictures(Stage &s)
 {
     // Home, as it settles after the app opens.
@@ -150,17 +268,37 @@ void pictures(Stage &s)
     s.press({Key::right});
     s.wait(0.6f);
     s.shoot("02-home-details-focus");
-    s.press({Key::down, Key::right});
+    s.press({Key::right, Key::right, Key::right});
     s.wait(0.6f);
     s.shoot("03-home-recent-focus");
-    s.press({Key::up, Key::up, Key::right});
+    s.press({Key::down});
     s.wait(0.6f);
     s.shoot("04-home-settings-focus");
+    s.press({Key::left, Key::left, Key::left, Key::left, Key::left});
+    s.wait(0.6f);
+    s.shoot("04b-home-dock-library");
+    s.press({Key::cross});
+    s.wait(0.8f);
+    s.shoot("04c-all-games");
+    s.press({Key::circle});
+    s.wait(0.6f);
+    s.shoot("04d-home-after-all-games");
+    s.press({Key::triangle});
+    s.wait(0.8f);
+    s.shoot("04e-game-options");
+    s.press({Key::down, Key::cross});
+    s.wait(0.8f);
+    s.shoot("04f-game-options-category");
+    s.press({Key::circle, Key::down, Key::down, Key::down, Key::down, Key::down, Key::down, Key::down});
+    s.wait(0.8f);
+    s.shoot("04g-game-options-scrolled");
+    s.press({Key::circle});
+    s.wait(0.6f);
 
     // Library.
     s.restart();
     s.wait(1.0f);
-    s.press({Key::up, Key::cross});
+    s.press({Key::down, Key::cross});
     s.wait(0.14f);
     s.shoot("05-opening-library");
     s.wait(1.2f);
@@ -401,7 +539,7 @@ void pictures(Stage &s)
             s.services.removed.push_back(game.file);
     s.wait(2.5f);
     s.shoot("56-home-game-removed");
-    s.press({Key::up, Key::cross});
+    s.press({Key::down, Key::cross});
     s.wait(1.2f);
     s.shoot("57-library-game-removed");
     s.services.removed.clear();
@@ -409,9 +547,17 @@ void pictures(Stage &s)
     // Settings and its dialogs.
     s.restart();
     s.wait(1.0f);
-    s.press({Key::up, Key::right, Key::cross});
+    s.press({Key::down, Key::right, Key::cross});
     s.wait(1.0f);
     s.shoot("13-settings");
+    s.press({Key::down, Key::down});
+    s.wait(0.8f);
+    s.shoot("13b-settings-performance");
+    s.press({Key::r1});
+    s.wait(0.8f);
+    s.shoot("13c-settings-switch2");
+    s.press({Key::l1, Key::up, Key::up});
+    s.wait(0.8f);
     // Profiles, the first category: a new one, playing as it, and taking it off the list again.
     s.press({Key::cross});
     s.wait(0.8f);
@@ -543,9 +689,9 @@ void pictures(Stage &s)
     s.shoot("33-theme-accent");
     s.press({Key::up, Key::left});
     s.wait(0.4f);
-    if (s.services.preferences().theme != "eglantine" || !s.services.preferences().accent.empty())
+    if (s.services.preferences().theme != "horizon" || !s.services.preferences().accent.empty())
     {
-        std::fprintf(stderr, "error: the theme did not return to Eglantine\n");
+        std::fprintf(stderr, "error: the theme did not return to Horizon\n");
         s.ok = false;
     }
     s.press({Key::down, Key::down, Key::down, Key::down});
@@ -644,7 +790,7 @@ void pictures(Stage &s)
     s.services.room = {};
     s.wait(0.5f);
     s.shoot("C5-home-room-disconnected");
-    s.press({Key::up, Key::right, Key::cross});
+    s.press({Key::down, Key::right, Key::cross});
     s.wait(0.8f);
     s.shoot("C6-settings-multiplayer-off");
 
@@ -658,7 +804,7 @@ void pictures(Stage &s)
     // About.
     s.restart();
     s.wait(1.0f);
-    s.press({Key::up, Key::right, Key::right, Key::cross});
+    s.press({Key::down, Key::right, Key::right, Key::cross});
     s.wait(1.0f);
     s.shoot("23-about");
 
@@ -706,7 +852,7 @@ void pictures(Stage &s)
     s.services.has_server = true;
     s.restart();
     s.wait(1.0f);
-    s.press({Key::up, Key::cross});
+    s.press({Key::down, Key::cross});
     s.wait(1.2f);
     s.press({Key::down, Key::down, Key::down, Key::down, Key::down}); // Lighthouse Keeper
     s.wait(0.6f);
@@ -755,7 +901,7 @@ void pictures(Stage &s)
     // A downloaded game from the server is deleted from the console in its settings, asked first.
     s.restart();
     s.wait(1.0f);
-    s.press({Key::up, Key::cross});
+    s.press({Key::down, Key::cross});
     s.wait(1.2f);
     s.press({Key::down, Key::down, Key::down, Key::down, Key::down, Key::down, Key::down, Key::down}); // Orbit Postman
     s.wait(0.6f);
@@ -786,7 +932,7 @@ void pictures(Stage &s)
     s.services.download_fails = true;
     s.restart();
     s.wait(1.0f);
-    s.press({Key::up, Key::cross});
+    s.press({Key::down, Key::cross});
     s.wait(1.2f);
     s.press({Key::down, Key::down, Key::down, Key::down, Key::down, Key::down, Key::down, Key::down,
              Key::down, Key::down, Key::down}); // Rune Gardens
@@ -804,7 +950,7 @@ void pictures(Stage &s)
     // Settings > Downloads: the sources and the queue.
     s.press({Key::circle});
     s.wait(0.8f);
-    s.press({Key::up, Key::right, Key::cross});
+    s.press({Key::down, Key::right, Key::cross});
     s.wait(1.0f);
     s.press({Key::down, Key::down, Key::down, Key::down, Key::down, Key::down, Key::down, Key::down});
     s.wait(0.6f);
@@ -830,7 +976,7 @@ void pictures(Stage &s)
     s.services.has_server = false;
     s.restart();
     s.wait(1.0f);
-    s.press({Key::up, Key::right, Key::cross});
+    s.press({Key::down, Key::right, Key::cross});
     s.wait(1.0f);
     s.press({Key::down, Key::down, Key::down, Key::down, Key::down, Key::down, Key::down, Key::down,
              Key::cross});
@@ -841,7 +987,7 @@ void pictures(Stage &s)
     s.services.save_sync_on = true;
     s.restart();
     s.wait(1.0f);
-    s.press({Key::up, Key::cross});
+    s.press({Key::down, Key::cross});
     s.wait(1.2f);
     s.press({Key::cross});
     s.wait(0.6f);
@@ -865,7 +1011,7 @@ void pictures(Stage &s)
     s.services.save_sync_fails = true;
     s.restart();
     s.wait(1.0f);
-    s.press({Key::up, Key::cross});
+    s.press({Key::down, Key::cross});
     s.wait(1.2f);
     s.press({Key::cross});
     s.wait(3.0f);
@@ -882,7 +1028,7 @@ void pictures(Stage &s)
     s.services.save_sync_too_old = true;
     s.restart();
     s.wait(1.0f);
-    s.press({Key::up, Key::cross});
+    s.press({Key::down, Key::cross});
     s.wait(1.2f);
     s.press({Key::cross});
     s.wait(3.0f);
@@ -902,7 +1048,7 @@ void pictures(Stage &s)
     // Settings > Save sync: the profiles and their servers; pairing one by a QR code.
     s.restart();
     s.wait(1.0f);
-    s.press({Key::up, Key::right, Key::cross});
+    s.press({Key::down, Key::right, Key::cross});
     s.wait(1.0f);
     s.press({Key::down, Key::down, Key::down, Key::down, Key::down, Key::down, Key::down, Key::down, Key::down});
     s.wait(0.6f);
@@ -1219,7 +1365,9 @@ int main(int argc, char **argv)
     stage.pixels.resize(static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4);
     stbi_flip_vertically_on_write(1);
     const char *which_tour = std::getenv("PE_TOUR");
-    if (make_tour && which_tour && std::strcmp(which_tour, "update") == 0)
+    if (std::getenv("PE_CNX") != nullptr)
+        cnx_pictures(stage);
+    else if (make_tour && which_tour && std::strcmp(which_tour, "update") == 0)
         update_tour(stage);
     else if (make_tour)
         tour(stage);

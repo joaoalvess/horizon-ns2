@@ -292,7 +292,7 @@ void Launcher::draw_save_sync(Canvas &c, float open)
                               tr("Save data not synced"),
                 592.0f, baseline(218.0f, 62.0f, th().size_display), th().size_display, th().title, 736.0f);
     text_fit(c, save_sync_.profile.empty() ? game : fill(tr("{0} · Profile {1}"), {game, save_sync_.profile}), 592.0f,
-             baseline(291.0f, 32.0f, th().size_small), th().size_small, th().note, 736.0f);
+             baseline(291.0f, 32.0f, th().size_small), th().size_small, th().meta, 736.0f);
     notice_block(c,
                  conflict ? std::string{tr("This console and the server both have save data the other does not know. "
                                            "Which one should stay? The other is kept as a backup.")} :

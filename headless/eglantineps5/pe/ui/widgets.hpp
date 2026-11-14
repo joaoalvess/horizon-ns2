@@ -117,8 +117,10 @@ void plate_rest(Canvas &c, const Plate &style, const Rect &r);
 // The highlight alone.
 void plate_focus(Canvas &c, const Plate &style, const Rect &r, float amount);
 
-// A cover (or the app icon while it loads or when there is none), with rounded corners.
-void cover(Canvas &c, const std::string &path, const Rect &r, float radius, float shadow = 0.0f);
+// A cover with rounded corners. While it loads, and when the game has none, a flat
+// tile; `mark` (the game's name) lends its first letter to that tile.
+void cover(Canvas &c, const std::string &path, const Rect &r, float radius, float shadow = 0.0f,
+           std::string_view mark = {});
 // An arc from `start` (radians, 0 at the right, clockwise on screen) over `sweep`: a ring that
 // fills, or a part of one that turns while something works.
 void arc(gfx::DrawList &list, float cx, float cy, float radius, float width, float start, float sweep, Color color);
@@ -147,6 +149,8 @@ enum class Pad : std::uint8_t
     leftright,
     l1,
     r1,
+    l2,
+    r2,
 };
 struct Hint
 {

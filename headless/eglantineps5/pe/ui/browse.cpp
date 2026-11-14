@@ -51,7 +51,7 @@ void draw_folder(Canvas &c, float x, float cy, Color ink, bool up)
     c.list.rounded_rect({x, cy - 9.0f, 40.0f, 24.0f}, 4.0f, ink);
     if (up)
     {
-        const Color dark = th().on_accent;
+        const Color dark = th().panel;
         c.list.line(x + 20.0f, cy + 9.0f, x + 20.0f, cy - 3.0f, 2.4f, dark);
         c.list.line(x + 14.0f, cy + 2.0f, x + 20.0f, cy - 4.0f, 2.4f, dark);
         c.list.line(x + 26.0f, cy + 2.0f, x + 20.0f, cy - 4.0f, 2.4f, dark);
@@ -204,13 +204,13 @@ void Launcher::draw_files(Canvas &c)
             const Rect r = row_rect(row);
             list.push_opacity(files_.row_alpha(row, kRowHeight));
             draw_folder(c, r.x + 24.0f, r.y + kRowHeight * 0.5f,
-                        up ? th().accent_pale : th().folder, up);
+                        up ? th().accent_pale : th().muted, up);
             const float tag = text(c, up ? tr("UP") : tr("OPEN"), r.x + 730.0f,
                                    baseline(r.y, kRowHeight, th().size_small), th().size_small,
                                    th().meta, Align::right);
             text_fit(c, up ? tr("Parent folder") : entry, r.x + 84.0f,
                      baseline(r.y, kRowHeight, th().size_text), th().size_text,
-                     up ? th().accent_pale : th().row_name, 730.0f - 84.0f - tag - 24.0f);
+                     up ? th().accent_pale : th().title, 730.0f - 84.0f - tag - 24.0f);
             list.pop_opacity();
         }
         list.pop_clip();
@@ -366,7 +366,7 @@ void Launcher::draw_language(Canvas &c)
         // The language in use carries a lime tag; its name has the room the tag leaves.
         const float width = text_width(c, tr("IN USE"), 18.0f, 2.0f) + 28.0f;
         text_shrink(c, labels[static_cast<std::size_t>(row)], r.x + 26.0f,
-                    baseline(r.y, kRowHeight, th().size_text), th().size_text, th().row_name,
+                    baseline(r.y, kRowHeight, th().size_text), th().size_text, th().title,
                     row == prefs_.language ? 734.0f - 26.0f - width - 24.0f : 708.0f);
         if (row == prefs_.language)
         {
@@ -429,7 +429,7 @@ void Launcher::draw_language(Canvas &c)
 void Launcher::draw_about(Canvas &c)
 {
     gfx::DrawList &list = c.list;
-    draw_frame(c, tr("About EglantinePS5"), tr("Credits and setup"));
+    draw_frame(c, "Horizon Switch", tr("Credits and setup"));
 
     glass(c, kListPanel, 26.0f, th().panel.with_alpha(0.80f), th().panel_edge.with_alpha(0.55f));
     text(c, tr("PROJECT CREDITS"), 144.0f, baseline(210.0f, 28.0f, th().size_small), th().size_small,

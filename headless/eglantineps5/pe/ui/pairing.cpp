@@ -349,7 +349,7 @@ void Launcher::draw_pairing(Canvas &c, float open)
                 baseline(kPairPanel.y + 34.0f, 62.0f, th().size_display), th().size_display, th().title,
                 kPairPanel.w - 96.0f);
     text_fit(c, fill(tr("with {0}"), {pairing_.server}), kPairPanel.x + 48.0f, baseline(kPairPanel.y + 98.0f, 32.0f, th().size_small),
-             th().size_small, th().note, kPairPanel.w - 96.0f);
+             th().size_small, th().meta, kPairPanel.w - 96.0f);
 
     // The QR code: dark modules on white, with the quiet zone it needs around it. Once it is
     // over, it fades: there is nothing to scan any more.

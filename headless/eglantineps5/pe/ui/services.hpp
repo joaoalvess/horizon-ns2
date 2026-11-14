@@ -32,6 +32,8 @@ enum class Key : std::uint8_t
     down,
     left,
     right,
+    l2,
+    r2,
 };
 
 // A newer release of the app, listed on prosperostore.net.
@@ -89,6 +91,21 @@ struct Game
     std::string key;
     // Not on the console yet: on its sources only. Its file is the name it gets in roms/.
     bool remote = false;
+};
+
+struct Translation
+{
+    std::string name, size, error;
+    std::uint64_t title_id = 0;
+    bool installed = false, managed = false;
+};
+
+struct Translations
+{
+    std::vector<Translation> list;
+    bool loading = false, busy = false, cached = false;
+    std::uint64_t generation = 0, active_title = 0;
+    std::string error;
 };
 
 // A download source: a place on the network with Switch games (headless/remote/remote.h).
@@ -319,7 +336,7 @@ struct Preferences
     bool high_contrast = false;
     bool reduce_motion = false;
     // The launcher's theme and accent preset, by id (theme.hpp); "" is the theme's own accent.
-    std::string theme = "eglantine";
+    std::string theme = "horizon";
     std::string accent;
     // Performance: speed against accuracy, for every game.
     bool block_list = false;    // compile the code of earlier sessions ahead
@@ -330,6 +347,7 @@ struct Preferences
     bool reactive_flushing = true;  // off is faster; some effects break
     bool skip_invalidation = false; // fewer invalidations of what the GPU caches hold
     ButtonMapping mapping = kDefaultMapping; // Settings > Controls > Button mapping
+    int platform = 0;
 };
 
 // What one game does differently from Settings (Library > Game settings). Each value is -1 while
@@ -435,6 +453,20 @@ class Services
 
     // ---- library ----
     virtual std::vector<Game> games() = 0; // reads every game file: slow
+    // Files pinned to the front of the shelf, in pin order.
+    virtual std::vector<std::string> favorites()
+    {
+        return {};
+    }
+    virtual bool set_favorite(const std::string &, bool)
+    {
+        return false;
+    }
+    // The recommended profile for this title, or empty when there is none.
+    virtual std::string game_profile(std::uint64_t)
+    {
+        return {};
+    }
     // The value the launcher hands back to start a game.
     virtual std::string game_path(const std::string &file) = 0;
     // Whether a game's file is still in the game files folder (one look at the file, no reading).
@@ -454,7 +486,7 @@ class Services
     virtual bool set_game_settings(std::uint64_t title_id, const GameSettings &settings) = 0;
 
     // ---- settings ----
-    virtual Preferences preferences() = 0;
+    virtual Preferences preferences(int platform = 0) = 0;
     virtual bool set_preferences(const Preferences &preferences) = 0;
     virtual const std::vector<std::string> &resolution_labels() = 0; // "1x (native)"
     virtual const std::vector<std::string> &resolution_keys() = 0;   // "1x"
@@ -529,6 +561,18 @@ class Services
     }
 
     // ---- mods: patches, replacement files and cheats the player added for a game ----
+    virtual Translations translations()
+    {
+        return {};
+    }
+    virtual bool install_translation(std::uint64_t)
+    {
+        return false;
+    }
+    virtual bool remove_translation(std::uint64_t)
+    {
+        return false;
+    }
     virtual std::vector<Mod> mods(std::uint64_t)
     {
         return {};

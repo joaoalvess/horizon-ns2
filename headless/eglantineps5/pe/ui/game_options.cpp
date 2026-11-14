@@ -402,7 +402,7 @@ void Launcher::draw_game_options(Canvas &c, float open)
                 th().size_display, th().title, 736.0f);
     const Game *game = games_.empty() ? nullptr : &games_[static_cast<std::size_t>(library_.selected)];
     text_fit(c, game != nullptr ? game->name : std::string{}, 592.0f, baseline(291.0f, 32.0f, th().size_small),
-             th().size_small, th().note, 736.0f);
+             th().size_small, th().meta, 736.0f);
 
     const std::vector<Option> rows = options(game_options_, game_settings_, prefs_, services_, {hertz(0), hertz(1)});
     list.push_clip({kWindow.x - 24.0f, kWindow.y - 6.0f, kWindow.w + 48.0f, kWindow.h + 12.0f});
@@ -566,7 +566,7 @@ void Launcher::draw_mapping(Canvas &c, float open)
     const Game *game = mapping_for_game_ && !games_.empty() ?
                            &games_[static_cast<std::size_t>(library_.selected)] : nullptr;
     text_fit(c, game != nullptr ? game->name : std::string{tr("For every controller. A game can have its own.")},
-             592.0f, baseline(291.0f, 32.0f, th().size_small), th().size_small, th().note, 736.0f);
+             592.0f, baseline(291.0f, 32.0f, th().size_small), th().size_small, th().meta, 736.0f);
 
     const ButtonMapping &mapping = mapping_for_game_ ? game_settings_.mapping : prefs_.mapping;
     list.push_clip({kWindow.x - 24.0f, kWindow.y - 6.0f, kWindow.w + 48.0f, kWindow.h + 12.0f});

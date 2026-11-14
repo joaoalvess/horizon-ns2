@@ -260,7 +260,25 @@ static std::string RomPath(const std::string& file) {
         char shared[NFS_PATH_MAX];
         if (nfs_alias_target(file.c_str(), shared, sizeof(shared))) return shared;
     }
-    return Eden::AssetsPath("roms/" + file);
+    const std::string own = Eden::AssetsPath("roms/" + file);
+    struct stat info {};
+    if (stat(own.c_str(), &info) == 0) return own;
+    for (const std::string& dir : Eden::RomsDirs()) {
+        if (IsFolderGame(file)) {
+            if (const auto main = Eden::ExtractedGameMain(dir + "/" + file.substr(0, file.size() - 4)); !main.empty())
+                return main;
+        } else if (const std::string path = dir + "/" + file; stat(path.c_str(), &info) == 0) {
+            return path;
+        }
+    }
+    return own;
+}
+
+static void ScanAddOns() {
+    const std::vector<std::string> dirs = Eden::UpdatesDirs();
+    std::vector<const char*> list;
+    for (const std::string& dir : dirs) list.push_back(dir.c_str());
+    eden_scan_addons(list.data(), list.size(), Eden::AssetsPath("keys").c_str());
 }
 
 // The cached cover of a ROM, extracted from it when missing; empty when it has none.
@@ -311,14 +329,18 @@ bool WriteCover(const std::string& encoded, const std::string& path) {
 }
 
 int CountInstalledGames() {
-    std::error_code error;
-    const auto entries = Eden::ReadNativeDirectory(Eden::AssetsPath("roms"), error);
-    if (error) return 0;
+    std::vector<std::string> dirs{Eden::AssetsPath("roms")};
+    for (std::string& dir : Eden::RomsDirs()) dirs.push_back(std::move(dir));
     int count = 0;
-    for (const auto& entry : entries) {
-        const std::string filename = entry.path().filename().string();
-        if ((Eden::ValidRomFilename(filename) && IsFile(RomPath(filename))) ||
-            !Eden::ExtractedGameMain(entry.path().string()).empty()) ++count;
+    for (const std::string& dir : dirs) {
+        std::error_code error;
+        const auto entries = Eden::ReadNativeDirectory(dir, error);
+        if (error) continue;
+        for (const auto& entry : entries) {
+            const std::string filename = entry.path().filename().string();
+            if ((Eden::ValidRomFilename(filename) && IsFile(dir + "/" + filename)) ||
+                !Eden::ExtractedGameMain(entry.path().string()).empty()) ++count;
+        }
     }
     return count;
 }
@@ -767,6 +789,10 @@ EdenServices::EdenServices(std::string launch_error, Eden::Multiplayer::RoomClie
     // Who is playing (profiles.h): the profile this PS5 user chose last, else the one chosen last.
     (void)sceUserServiceInitialize(nullptr); // already done by the controller code: refused, harmless
     if (sceUserServiceGetForegroundUser(&user_) < 0) user_ = -1;
+    char user_name[17]{};
+    if (user_ >= 0 && sceUserServiceGetUserName(user_, user_name, sizeof(user_name)) < 0) user_name[0] = '\0';
+    if (!Eden::Profiles::Claim(user_, user_name))
+        Eden::Report("profile", "Could not give this PS5 user a profile of their own");
     const auto who = Eden::Profiles::Resolve(user_);
     if (!who.profiles.empty())
         Eden::Report("profile", (who.profiles[static_cast<std::size_t>(who.current)].name + " (" +
@@ -791,6 +817,7 @@ EdenServices::EdenServices(std::string launch_error, Eden::Multiplayer::RoomClie
 }
 
 EdenServices::~EdenServices() {
+    StopTranslations();
     if (Eden::FilesystemAccess()) Eden::Remote::Stop();
     {
         const std::lock_guard lock(sync_lock_);
@@ -860,7 +887,7 @@ pe::ui::Home EdenServices::home() {
     // The last game's update and DLC and the language it will use; when it does not offer the
     // chosen one, the caption says so.
     if (home.setup_ready && home.last_exists && (home.keys_ready || !IsEncryptedGame(home.last_file))) {
-        eden_scan_addons(Eden::AssetsPath("updates").c_str(), Eden::AssetsPath("keys").c_str());
+        ScanAddOns();
         const uint64_t title_id = eden_game_title_id(last_path.c_str());
         const GameLanguage language = LanguageFor(last_path, title_id, Eden::PreferencesFor(title_id).language);
         home.last_title_id = title_id;
@@ -1005,6 +1032,7 @@ static std::vector<std::string> NfsGames(const std::set<std::string>& local) {
 // too. A game that is in roms/ or on a share keeps its place; the rest is found once, the first drive first.
 static std::vector<std::string> UsbGames(const std::set<std::string>& taken, std::map<std::string, std::string>& labels) {
     std::vector<std::pair<std::string, const char*>> roots;
+    for (std::string& dir : Eden::RomsDirs()) roots.emplace_back(std::move(dir), "");
     for (int drive = 0; drive < 8; ++drive) {
         const std::string root = "/mnt/usb" + std::to_string(drive) + "/games";
         if (Eden::DirectoryExists(root)) roots.emplace_back(root, "USB");
@@ -1022,7 +1050,7 @@ static std::vector<std::string> UsbGames(const std::set<std::string>& taken, std
     const auto add = [&](const std::string& key, const std::string& path, const char* label) {
         if (taken.contains(key) || found.contains(key)) return;
         found[key] = path;
-        labels[key] = label;
+        if (*label != '\0') labels[key] = label;
         names.push_back(key);
     };
     for (const auto& [root, label] : roots) {
@@ -1061,7 +1089,7 @@ std::vector<pe::ui::Game> EdenServices::games() {
     auto entries = Eden::ReadNativeDirectory(Eden::AssetsPath("roms"), directory_error);
     // Without a roms folder there are still the download sources' games.
     if (directory_error) entries.clear();
-    eden_scan_addons(Eden::AssetsPath("updates").c_str(), Eden::AssetsPath("keys").c_str());
+    ScanAddOns();
     // The download sources' games, each title once: one that is on the console can be downloaded
     // again, and is deleted from the console in its settings.
     const std::vector<Eden::Remote::Title> titles = Titles();
@@ -1206,46 +1234,19 @@ void EdenServices::finish_update() { Eden::UpdateNotice::Finish(); }
 
 std::vector<pe::ui::Profile> EdenServices::profiles() {
     const auto who = Eden::Profiles::Resolve(user_);
-    std::vector<pe::ui::Profile> list;
-    for (std::size_t index = 0; index < who.profiles.size(); ++index)
-        list.push_back({who.profiles[index].name, static_cast<int>(index) == who.current});
-    return list;
+    if (who.profiles.empty()) return {};
+    return {{who.profiles[static_cast<std::size_t>(who.current)].name, true}};
 }
 
-bool EdenServices::choose_profile(int index) {
-    if (rooms_.GetSnapshot().phase != Eden::Multiplayer::Phase::Idle) return false;
-    const auto who = Eden::Profiles::Resolve(user_);
-    if (index < 0 || index >= static_cast<int>(who.profiles.size())) return false;
-    const auto& profile = who.profiles[static_cast<std::size_t>(index)];
-    if (!Eden::Profiles::Choose(profile, user_)) return false;
-    Eden::Report("profile", ("Now playing: " + profile.name).c_str());
-    return true;
-}
+bool EdenServices::choose_profile(int) { return false; }
 
-int EdenServices::add_profile() {
-    auto list = Eden::Profiles::Read();
-    if (list.empty() || list.size() >= Eden::Profiles::kMax) return -1;
-    // A signed-in PS5 user's name when no profile has it yet, else the next "Player" name.
-    std::string name = Eden::Profiles::FreeName(list);
-    for (const std::string& candidate : ProfileNames()) {
-        if (std::none_of(list.begin(), list.end(), [&](const auto& p) { return p.name == candidate; })) {
-            name = candidate;
-            break;
-        }
-    }
-    list.push_back(Eden::Profiles::Make(name));
-    if (!Eden::Profiles::Write(list)) return -1;
-    // It starts with the settings of whoever made it; from then on they are its own.
-    (void)Eden::Profiles::Seed(list.back());
-    KeepSaveSyncFile(list);
-    Eden::Report("profile", ("Added: " + name).c_str());
-    return static_cast<int>(list.size()) - 1;
-}
+int EdenServices::add_profile() { return -1; }
 
 bool EdenServices::rename_profile(int index, int step) {
-    auto list = Eden::Profiles::Read();
-    if (index < 0 || index >= static_cast<int>(list.size())) return false;
-    auto& profile = list[static_cast<std::size_t>(index)];
+    const auto who = Eden::Profiles::Resolve(user_);
+    auto list = who.profiles;
+    if (index != 0 || list.empty()) return false;
+    auto& profile = list[static_cast<std::size_t>(who.current)];
     // The names nobody else has; this profile's own name keeps its place among them.
     std::vector<std::string> names;
     for (const std::string& name : ProfileNames()) {
@@ -1264,20 +1265,13 @@ bool EdenServices::rename_profile(int index, int step) {
     return true;
 }
 
-bool EdenServices::remove_profile(int index) {
-    const auto who = Eden::Profiles::Resolve(user_);
-    auto list = who.profiles;
-    if (list.size() < 2 || index < 0 || index >= static_cast<int>(list.size()) || index == who.current) return false;
-    const std::string name = list[static_cast<std::size_t>(index)].name;
-    const auto gone = list[static_cast<std::size_t>(index)];
-    list.erase(list.begin() + index);
-    if (!Eden::Profiles::Write(list)) return false;
-    (void)Eden::Profiles::Forget(gone);
-    KeepSaveSyncFile(list);
-    // Its save data stays where it is (nand/user/save/.../<ID>): removing a name destroys nothing.
-    Eden::Report("profile", ("Removed from the list: " + name + " (its save data stays on the console)").c_str());
-    return true;
-}
+bool EdenServices::remove_profile(int) { return false; }
+
+std::vector<std::string> EdenServices::favorites() { return Eden::LoadFavorites(); }
+
+bool EdenServices::set_favorite(const std::string& file, bool on) { return Eden::SetFavorite(file, on); }
+
+std::string EdenServices::game_profile(std::uint64_t title_id) { return Eden::GameProfileName(title_id); }
 
 bool EdenServices::game_exists(const std::string& file) {
     return Eden::ValidRomFilename(file) && IsFile(RomPath(file));
@@ -1298,6 +1292,7 @@ static_assert(pe::ui::Preferences{}.hud_fields == static_cast<int>(Eden::kHudFie
               "the launcher's FPS overlay options differ");
 
 pe::ui::GameSettings EdenServices::game_settings(std::uint64_t title_id) {
+    Eden::StoreGameProfile(title_id);
     const Eden::GameSettings saved = Eden::LoadGameSettings(title_id);
     pe::ui::GameSettings result;
     result.renderer = saved.renderer;
@@ -1346,9 +1341,10 @@ bool EdenServices::set_game_settings(std::uint64_t title_id, const pe::ui::GameS
     return saved;
 }
 
-pe::ui::Preferences EdenServices::preferences() {
-    const Eden::Preferences saved = Eden::LoadPreferences();
+pe::ui::Preferences EdenServices::preferences(int platform) {
+    const Eden::Preferences saved = Eden::LoadPreferences(Eden::SettingsFile(), platform);
     pe::ui::Preferences result;
+    result.platform = platform;
     result.hud = saved.hud;
     result.hud_fields = saved.hud_fields;
     result.hud_size = saved.hud_size;
@@ -1377,7 +1373,7 @@ pe::ui::Preferences EdenServices::preferences() {
     result.theme = saved.theme;
     result.accent = saved.accent;
     // Settings > Performance: the general values (settings_store.h).
-    const Eden::PerformanceSettings speed = Eden::LoadPerformance(0);
+    const Eden::PerformanceSettings speed = Eden::LoadPerformance(0, Eden::SettingsFile(), platform);
     result.block_list = speed.block_list;
     result.async_shaders = speed.async_shaders;
     result.fast_gpu = speed.fast_gpu;
@@ -1419,7 +1415,7 @@ bool EdenServices::set_preferences(const pe::ui::Preferences& preferences) {
     value.theme = preferences.theme;
     value.accent = preferences.accent;
     value.mapping = preferences.mapping;
-    Eden::PerformanceSettings speed = Eden::LoadPerformance(0);
+    Eden::PerformanceSettings speed = Eden::LoadPerformance(0, Eden::SettingsFile(), preferences.platform);
     speed.block_list = preferences.block_list;
     speed.async_shaders = preferences.async_shaders;
     speed.fast_gpu = preferences.fast_gpu;
@@ -1427,7 +1423,8 @@ bool EdenServices::set_preferences(const pe::ui::Preferences& preferences) {
     speed.unsafe_dma = preferences.unsafe_dma;
     speed.reactive_flushing = preferences.reactive_flushing;
     speed.skip_invalidation = preferences.skip_invalidation;
-    const bool saved = Eden::SavePreferences(value) && Eden::SavePerformance(0, speed);
+    const bool saved = Eden::SavePreferences(value, Eden::SettingsFile(), preferences.platform) &&
+                       Eden::SavePerformance(0, speed, Eden::SettingsFile(), preferences.platform);
     if (!saved) Eden::Report("settings", "Could not write preferences");
     if (saved) Eden::Multiplayer::SetDetailedLogging(value.detailed_logging);
     return saved;
@@ -1573,7 +1570,7 @@ std::vector<pe::ui::Mod> EdenServices::mods(std::uint64_t title_id) {
     std::vector<pe::ui::Mod> result;
     const auto off = Eden::LoadDisabledMods(title_id);
     const auto chosen = Eden::LoadChosenCheats(title_id);
-    for (const Eden::Mods::Mod& mod : Eden::Mods::List(Eden::AssetsPath("mods"), title_id)) {
+    for (const Eden::Mods::Mod& mod : Eden::Mods::List(Eden::ModsRoot(title_id), title_id)) {
         std::string kind;
         const auto add = [&kind](const char* text) {
             if (!kind.empty()) kind += ", ";
@@ -1593,7 +1590,7 @@ std::vector<pe::ui::Mod> EdenServices::mods(std::uint64_t title_id) {
 bool EdenServices::set_cheat_enabled(std::uint64_t title_id, const std::string& name, const std::string& cheat,
                                      bool enabled) {
     bool saved = false;
-    for (const Eden::Mods::Mod& mod : Eden::Mods::List(Eden::AssetsPath("mods"), title_id))
+    for (const Eden::Mods::Mod& mod : Eden::Mods::List(Eden::ModsRoot(title_id), title_id))
         if (mod.name == name)
             saved = Eden::SaveChosenCheats(
                 title_id, Eden::Mods::ChooseCheat(mod, cheat, enabled, Eden::LoadChosenCheats(title_id)));
@@ -1616,11 +1613,11 @@ bool EdenServices::set_mods_enabled(std::uint64_t title_id, bool enabled) {
 }
 
 std::string EdenServices::mods_folder(std::uint64_t title_id) {
-    return "mods/" + Eden::Mods::TitleName(title_id) + "/";
+    return Eden::ModsFolder(title_id) + "/" + Eden::Mods::TitleName(title_id) + "/";
 }
 
 bool EdenServices::make_mods_folder(std::uint64_t title_id) {
-    const std::string root = Eden::AssetsPath("mods");
+    const std::string root = Eden::ModsRoot(title_id);
     if (!Eden::Mods::TitleFolder(root, title_id).empty()) return true;
     (void)mkdir(root.c_str(), 0777);
     return mkdir(Eden::Mods::TitleFolderToCreate(root, title_id).c_str(), 0777) == 0;
@@ -1735,11 +1732,12 @@ bool EdenServices::delete_game(const pe::ui::Game& game, std::string* message) {
             for (const Eden::Remote::Game& entry : title.games)
                 for (std::string& path : Eden::Remote::Files(entry.source, entry.id)) files.push_back(std::move(path));
     const std::uint64_t title_id = game.title_id ? game.title_id : eden_game_title_id(rom.c_str());
-    (void)eden_game_addon_files(title_id, Eden::AssetsPath("updates").c_str(), Eden::AssetsPath("keys").c_str(),
-                                [](void* user, const char* path) {
-                                    static_cast<std::vector<std::string>*>(user)->emplace_back(path);
-                                },
-                                &files);
+    for (const std::string& dir : Eden::UpdatesDirs())
+        (void)eden_game_addon_files(title_id, dir.c_str(), Eden::AssetsPath("keys").c_str(),
+                                    [](void* user, const char* path) {
+                                        static_cast<std::vector<std::string>*>(user)->emplace_back(path);
+                                    },
+                                    &files);
     std::sort(files.begin(), files.end());
     files.erase(std::unique(files.begin(), files.end()), files.end());
     int deleted = 0;

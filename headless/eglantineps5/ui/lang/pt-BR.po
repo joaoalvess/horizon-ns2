@@ -47,10 +47,6 @@ msgstr "Já há um pareamento em andamento."
 msgid "About"
 msgstr "Sobre"
 
-#: pe/ui/browse.cpp
-msgid "About EglantinePS5"
-msgstr "Sobre o EglantinePS5"
-
 #. Time left while downloading; {0} is a number of minutes. Keep it short.
 #: pe/ui/remote.cpp, pe/ui/update.cpp
 msgid "About {0} min left"
@@ -84,11 +80,6 @@ msgstr "Adicionar"
 msgid "ADD-ONS"
 msgstr "COMPLEMENTOS"
 
-#. {0}: updates, DLC and mods of the game; {1}: the language it will use.
-#: pe/ui/home.cpp
-msgid "Add-ons: {0}  /  Language: {1}"
-msgstr "Complementos: {0}  /  Idioma: {1}"
-
 #: pe/ui/remote.cpp
 msgid "Added to the downloads. Settings, Downloads shows the queue."
 msgstr "Adicionado aos downloads. Configurações, Downloads mostra a fila."
@@ -96,10 +87,6 @@ msgstr "Adicionado aos downloads. Configurações, Downloads mostra a fila."
 #: pe/ui/profiles.cpp
 msgid "Added. Cross plays as this profile; left and right change its name."
 msgstr "Adicionado. Xis joga com este perfil; esquerda e direita mudam o nome."
-
-#: pe/ui/settings.cpp
-msgid "Adjust the essentials without leaving your library behind."
-msgstr "Ajuste o essencial sem sair da sua biblioteca."
 
 #: pe/ui/browse.cpp
 msgid "All credit for the Eglantine emulator goes to its developers and contributors."
@@ -280,10 +267,6 @@ msgstr "Chinês (tradicional)"
 msgid "Choose"
 msgstr "Escolher"
 
-#: pe/ui/home.cpp
-msgid "Choose a game from your library."
-msgstr "Escolha um jogo da sua biblioteca."
-
 #: pe/ui/browse.cpp
 msgid "Choose the folder that holds your keys, firmware and games"
 msgstr "Escolha a pasta com suas chaves, o firmware e os jogos"
@@ -338,10 +321,6 @@ msgstr "Problema de conexão"
 msgid "Console mode"
 msgstr "Modo do console"
 
-#: pe/ui/home.cpp
-msgid "CONTINUE PLAYING"
-msgstr "CONTINUE JOGANDO"
-
 #: pe/ui/settings.cpp
 msgid "Controller shortcuts and supported features."
 msgstr "Atalhos do controle e recursos compatíveis."
@@ -349,10 +328,6 @@ msgstr "Atalhos do controle e recursos compatíveis."
 #: pe/ui/game_options.cpp
 msgid "Controller type"
 msgstr "Tipo de controle"
-
-#: pe/ui/home.cpp
-msgid "CONTROLLERS"
-msgstr "CONTROLES"
 
 #: pe/ui/game_options.cpp, pe/ui/library.cpp, pe/ui/settings.cpp
 msgid "Controls"
@@ -467,10 +442,6 @@ msgstr "REGISTROS DETALHADOS"
 msgid "Detailed logs apply to the next game launch."
 msgstr "Os registros detalhados valem a partir do próximo jogo iniciado."
 
-#: pe/ui/settings.cpp
-msgid "Detailed logs on"
-msgstr "Registros detalhados ativados"
-
 #. Button hint: show the game's details.
 #: pe/ui/home.cpp
 msgid "Details"
@@ -583,10 +554,6 @@ msgstr "As mensagens de depuração do Eden nos registros de um jogo."
 msgid "Edit"
 msgstr "Editar"
 
-#: pe/ui/home.cpp
-msgid "Eglantine emulator for PlayStation 5"
-msgstr "Emulador Eglantine para PlayStation 5"
-
 #: pe/ui/update.cpp
 msgid "EglantinePS5 closes now."
 msgstr "O EglantinePS5 vai fechar agora."
@@ -675,6 +642,10 @@ msgid "FASTER DMA"
 msgstr "DMA MAIS RÁPIDO"
 
 #: pe/ui/settings.cpp
+msgid "Faster Switch 2 games, at some cost in accuracy."
+msgstr "Jogos de Switch 2 mais rápidos, com alguma perda de precisão."
+
+#: pe/ui/settings.cpp
 msgid "Faster games, at some cost in accuracy."
 msgstr "Jogos mais rápidos, com alguma perda de precisão."
 
@@ -695,10 +666,6 @@ msgstr "ARQUIVO"
 #: eden_services.cpp, host/fake_services.cpp
 msgid "Files"
 msgstr "Arquivos"
-
-#: pe/ui/settings.cpp
-msgid "Fine-tune your experience"
-msgstr "Ajuste a sua experiência"
 
 #: pe/ui/browse.cpp
 msgid "FIRMWARE"
@@ -796,10 +763,6 @@ msgstr "Áudio dos jogos; a música do menu do PS5 não muda."
 msgid "Game could not start: {0} Details: {1}"
 msgstr "Não foi possível iniciar o jogo: {0} Detalhes: {1}"
 
-#: pe/ui/home.cpp
-msgid "Game details"
-msgstr "Detalhes do jogo"
-
 #: pe/ui/library.cpp
 msgid "GAME DETAILS"
 msgstr "DETALHES DO JOGO"
@@ -840,10 +803,6 @@ msgstr "Jogos na sua rede, baixados quando você os joga."
 msgid "Games use this language when they offer it, and their own default otherwise. It applies when a game starts."
 msgstr "Os jogos usam este idioma quando o oferecem; caso contrário, usam o próprio padrão. Vale a partir do próximo jogo iniciado."
 
-#: pe/ui/home.cpp
-msgid "Games you launch will appear here."
-msgstr "Os jogos que você iniciar aparecem aqui."
-
 #: settings_store.h
 msgid "German"
 msgstr "Alemão"
@@ -877,6 +836,10 @@ msgstr "ALTO CONTRASTE"
 #: pe/ui/settings.cpp
 msgid "High contrast"
 msgstr "Alto contraste"
+
+#: pe/ui/settings.cpp
+msgid "How Switch 2 games are drawn and scaled to your TV."
+msgstr "Como os jogos de Switch 2 são desenhados e ajustados à sua TV."
 
 #: pe/ui/settings.cpp
 msgid "How games are drawn and scaled to your TV."
@@ -1016,10 +979,6 @@ msgstr "Texto maior"
 msgid "Last game opened"
 msgstr "Último jogo aberto"
 
-#: pe/ui/home.cpp
-msgid "Launch game"
-msgstr "Iniciar jogo"
-
 #: pe/ui/multiplayer.cpp
 msgid "Leave / cancel"
 msgstr "Sair / cancelar"
@@ -1077,11 +1036,6 @@ msgstr "Carregando salas públicas..."
 msgid "Lowest GPU accuracy: faster in demanding games, and graphics can be wrong."
 msgstr "Menor precisão de GPU: mais rápida em jogos exigentes, mas os gráficos podem ficar errados."
 
-#. Headline of the Settings screen.
-#: pe/ui/settings.cpp
-msgid "Make it yours."
-msgstr "Deixe do seu jeito."
-
 #: pe/ui/settings.cpp
 msgid "Make the menu easier to see and follow."
 msgstr "Deixe o menu mais fácil de ver e acompanhar."
@@ -1131,10 +1085,6 @@ msgstr "Mudo"
 #: pe/ui/settings.cpp
 msgid "MUTE"
 msgstr "MUDO"
-
-#: pe/ui/settings.cpp
-msgid "Muted"
-msgstr "Sem som"
 
 #. Button hint: move the highlight.
 #: pe/ui/home.cpp, pe/ui/update.cpp
@@ -1290,10 +1240,6 @@ msgstr "Offline"
 msgid "On"
 msgstr "Ativado"
 
-#: pe/ui/settings.cpp
-msgid "ON THIS CONSOLE"
-msgstr "NESTE CONSOLE"
-
 #. Short tag on a folder row.
 #: pe/ui/browse.cpp
 msgid "OPEN"
@@ -1307,10 +1253,6 @@ msgstr "Abrir"
 #: pe/ui/update.cpp
 msgid "Open it again to use version {0}."
 msgstr "Abra-o novamente para usar a versão {0}."
-
-#: pe/ui/home.cpp
-msgid "Open library"
-msgstr "Abrir biblioteca"
 
 #. The DualSense button labelled OPTIONS: keep the label if the language's players do.
 #: pe/ui/game_options.cpp
@@ -1390,10 +1332,6 @@ msgstr "DESEMPENHO"
 msgid "Play anyway"
 msgstr "Jogar mesmo assim"
 
-#: pe/ui/profiles.cpp
-msgid "Play as"
-msgstr "Jogar como"
-
 #: pe/ui/library.cpp
 msgid "Play when downloaded"
 msgstr "Jogar ao terminar o download"
@@ -1437,10 +1375,6 @@ msgstr "Português (Brasil)"
 #: pe/ui/browse.cpp
 msgid "Powered by Eglantine"
 msgstr "Com a tecnologia do Eglantine"
-
-#: pe/ui/settings.cpp
-msgid "PREFERENCES"
-msgstr "PREFERÊNCIAS"
 
 #. Update dialog headline while the download starts.
 #: pe/ui/remote.cpp, pe/ui/update.cpp
@@ -1550,10 +1484,6 @@ msgstr "Lendo..."
 #: pe/ui/settings.cpp
 msgid "Ready"
 msgstr "Pronto"
-
-#: pe/ui/home.cpp
-msgid "RECENTLY PLAYED"
-msgstr "JOGADOS RECENTEMENTE"
 
 #: pe/ui/settings.cpp
 msgid "REDUCE MOTION"
@@ -1788,10 +1718,6 @@ msgstr "PREPARAÇÃO"
 #: eden_services.cpp, host/fake_services.cpp
 msgid "Setup required"
 msgstr "Preparação necessária"
-
-#: eden_services.cpp, host/fake_services.cpp
-msgid "Setup required: {0} Open Settings, Game files to choose the folder that holds your keys, firmware and roms folders (or add the files to {1}), then reopen EglantinePS5."
-msgstr "Preparação necessária: {0} Abra Configurações, Arquivos de jogo para escolher a pasta com as pastas keys, firmware e roms (ou adicione os arquivos a {1}) e reabra o EglantinePS5."
 
 #: pe/ui/settings.cpp
 msgid "Setup status and detailed logs."
@@ -2184,14 +2110,6 @@ msgid "VIBRATION"
 msgstr "VIBRAÇÃO"
 
 #: pe/ui/settings.cpp
-msgid "Vibration off"
-msgstr "Vibração desativada"
-
-#: pe/ui/settings.cpp
-msgid "Vibration on"
-msgstr "Vibração ativada"
-
-#: pe/ui/settings.cpp
 msgid "Vibration, button mapping and the shortcuts during a game."
 msgstr "Vibração, mapeamento de botões e os atalhos durante o jogo."
 
@@ -2270,11 +2188,6 @@ msgstr "Seus jogos"
 #: pe/ui/update.cpp
 msgid "Your games, saves and settings are kept."
 msgstr "Seus jogos, saves e configurações são mantidos."
-
-#. Headline when no game has been played yet.
-#: pe/ui/home.cpp
-msgid "Your next adventure"
-msgstr "Sua próxima aventura"
 
 #: pe/ui/save_sync.cpp
 msgid "Your save data is checked against the server's."
@@ -2359,10 +2272,6 @@ msgstr "{0} de {1} mods ativados"
 msgid "{0} of {1} on"
 msgstr "{0} de {1} ativados"
 
-#: pe/ui/settings.cpp
-msgid "{0} of {1} profiles"
-msgstr "{0} de {1} perfis"
-
 #: pe/ui/save_sync.cpp
 msgid "{0} on {1}"
 msgstr "{0} em {1}"
@@ -2393,3 +2302,252 @@ msgstr "{0}/ (NSP ou XCI)"
 #: pe/ui/browse.cpp
 msgid "{0}/ (one folder per game ID)"
 msgstr "{0}/ (uma pasta por ID de título)"
+
+msgid "PT-BR translations"
+msgstr "Traduções PT-BR"
+
+msgid "PT-BR TRANSLATIONS"
+msgstr "TRADUÇÕES PT-BR"
+
+msgid "Community translations from the CNX list"
+msgstr "Traduções da comunidade disponíveis na lista do CNX"
+
+msgid "Community PT-BR translations, installed directly on this console."
+msgstr "Traduções PT-BR da comunidade, instaladas direto neste console."
+
+msgid "{0} translations"
+msgstr "{0} traduções"
+
+msgid "PT-BR translation available (CNX)"
+msgstr "Tradução PT-BR disponível (CNX)"
+
+msgid "PT-BR translation installed (CNX)"
+msgstr "Tradução PT-BR instalada (CNX)"
+
+msgid "Install"
+msgstr "Instalar"
+
+msgid "Installed"
+msgstr "Instalada"
+
+msgid "Not installed"
+msgstr "Não instalada"
+
+msgid "Installed manually"
+msgstr "Instalada manualmente"
+
+msgid "Working..."
+msgstr "Aguarde..."
+
+msgid "Translation details"
+msgstr "Detalhes da tradução"
+
+msgid "In your library"
+msgstr "Na sua biblioteca"
+
+msgid "Invalid metadata"
+msgstr "Dados inconsistentes"
+
+msgid "Reading the CNX list..."
+msgstr "Lendo a lista do CNX..."
+
+msgid "The translation list is unavailable."
+msgstr "A lista de traduções está indisponível."
+
+msgid "Updating the list..."
+msgstr "Atualizando a lista..."
+
+msgid "Saved list. Updated once a day."
+msgstr "Lista salva. Atualização uma vez ao dia."
+
+msgid "List updated."
+msgstr "Lista atualizada."
+
+msgid "Browse translations"
+msgstr "Navegar traduções"
+
+msgid "Installed outside the app. This folder is kept; only PT-BR CNX can be removed here."
+msgstr "Instalada fora do app. Essa pasta será preservada; aqui só é possível remover PT-BR CNX."
+
+msgid "Some translations require a specific game version or extra steps. Check the release instructions and the update in updates/."
+msgstr "Algumas traduções exigem uma versão específica do jogo ou passos extras. Confira as instruções da tradução e a atualização em updates/."
+
+msgid "Could not start the translation operation. Please try again."
+msgstr "Não foi possível iniciar a instalação ou remoção. Tente novamente."
+
+msgid "Translation updated. Applies on next launch."
+msgstr "Tradução atualizada. Será aplicada ao iniciar o jogo."
+
+msgid "Wait for the translation installation or removal to finish."
+msgstr "Aguarde a instalação ou remoção da tradução terminar."
+
+msgid "Check the game version, updates/ and any extra steps."
+msgstr "Confira a versão do jogo, updates/ e os passos extras."
+
+msgid "All games"
+msgstr "Todos os jogos"
+
+msgid "Translations"
+msgstr "Traduções"
+
+msgid "NFS share not saved:"
+msgstr "Compartilhamento NFS não salvo:"
+
+msgid "NFS shares removed."
+msgstr "Compartilhamentos NFS removidos."
+
+msgid "NFS share connected."
+msgstr "Compartilhamento NFS conectado."
+
+msgid "NFS share not connected: the server did not answer."
+msgstr "Compartilhamento NFS não conectado: o servidor não respondeu."
+
+msgid "NFS share not connected: the server refused the mount."
+msgstr "Compartilhamento NFS não conectado: o servidor recusou a montagem."
+
+msgid "NFS share not connected: the folder is not on the server."
+msgstr "Compartilhamento NFS não conectado: a pasta não existe no servidor."
+
+msgid "NFS share not connected: the connection was refused or could not be made."
+msgstr "Compartilhamento NFS não conectado: a conexão foi recusada ou não foi possível."
+
+msgid "NFS share not connected: the server closed the connection."
+msgstr "Compartilhamento NFS não conectado: o servidor fechou a conexão."
+
+msgid "NFS share not connected: the server's name could not be found."
+msgstr "Compartilhamento NFS não conectado: o nome do servidor não foi encontrado."
+
+msgid "NFS share not connected: the server denies access to this console."
+msgstr "Compartilhamento NFS não conectado: o servidor nega acesso a este console."
+
+msgid "NFS share not connected: that folder is not exported by the server. It exports:"
+msgstr "Compartilhamento NFS não conectado: o servidor não exporta essa pasta. Ele exporta:"
+
+msgid "NFS share not connected:"
+msgstr "Compartilhamento NFS não conectado:"
+
+msgid "Encrypted game: needs keys and firmware"
+msgstr "Jogo criptografado: precisa de chaves e firmware"
+
+msgid "Keys or firmware missing: {0} Unencrypted games (.nup files, extracted game folders) start without them. For .nsp and .xci games, open Settings, Game files to choose the folder that holds your keys, firmware and roms folders (or add the files to {1}), then reopen EglantinePS5."
+msgstr "Faltam chaves ou firmware: {0} Jogos sem criptografia (arquivos .nup, pastas de jogo extraídas) iniciam sem eles. Para jogos .nsp e .xci, abra Configurações, Arquivos do jogo e escolha a pasta com as pastas keys, firmware e roms (ou coloque os arquivos em {1}), depois reabra o EglantinePS5."
+
+msgid "Unencrypted games only"
+msgstr "Só jogos sem criptografia"
+
+msgid "Unencrypted games (.nup files, extracted game folders) start without keys and firmware."
+msgstr "Jogos sem criptografia (arquivos .nup, pastas de jogo extraídas) iniciam sem chaves e firmware."
+
+msgid "This game is encrypted and needs keys and firmware: {0}"
+msgstr "Este jogo é criptografado e precisa de chaves e firmware: {0}"
+
+msgid "The shelf already has 24 pinned games."
+msgstr "A estante já tem 24 jogos fixados."
+
+msgid "This game cannot be pinned."
+msgstr "Este jogo não pode ser fixado."
+
+msgid "Could not update the shelf."
+msgstr "Não foi possível atualizar a estante."
+
+msgid "Pinned"
+msgstr "Fixado"
+
+msgid "Recommended"
+msgstr "Recomendado"
+
+msgid "Switch / Switch 2"
+msgstr "Switch / Switch 2"
+
+msgid "Favorite"
+msgstr "Favorito"
+
+msgid "The reading you cancelled is still ending. Its files are kept; try again in a moment."
+msgstr "A leitura que você cancelou ainda está terminando. Os arquivos dela ficam guardados; tente de novo em instantes."
+
+msgid "Reading the game's files from the server"
+msgstr "Lendo os arquivos do jogo no servidor"
+
+msgid "Estimating the time"
+msgstr "Estimando o tempo"
+
+msgid "{0} folders, {1} files"
+msgstr "{0} pastas, {1} arquivos"
+
+msgid "Only the first time takes long: the next start is at once."
+msgstr "Só a primeira vez demora: a próxima abertura é imediata."
+
+msgid "NFS shares"
+msgstr "Compartilhamentos NFS"
+
+msgid "NFS SHARES"
+msgstr "COMPARTILHAMENTOS NFS"
+
+msgid "ABOUT"
+msgstr "SOBRE"
+
+msgid "THEME"
+msgstr "TEMA"
+
+msgid "ACCENT COLOR"
+msgstr "COR DE DESTAQUE"
+
+msgid "Games on a PC or a NAS, played over the network. Add each server with its address and exported folder."
+msgstr "Jogos num PC ou NAS, jogados pela rede. Adicione cada servidor com o endereço e a pasta exportada."
+
+msgid "SHARE"
+msgstr "COMPARTILHAMENTO"
+
+msgid "SHARES"
+msgstr "COMPARTILHAMENTOS"
+
+msgid "VERSION"
+msgstr "VERSÃO"
+
+msgid "Overlay: renderer"
+msgstr "Contador: renderizador"
+
+msgid "Overlay: FPS"
+msgstr "Contador: FPS"
+
+msgid "Overlay: worst frame"
+msgstr "Contador: pior quadro"
+
+msgid "Overlay: speed"
+msgstr "Contador: velocidade"
+
+msgid "Overlay: CPU"
+msgstr "Contador: CPU"
+
+msgid "Overlay: GPU"
+msgstr "Contador: GPU"
+
+msgid "Overlay: free memory"
+msgstr "Contador: memória livre"
+
+msgid "Overlay: ping"
+msgstr "Contador: ping"
+
+msgid "Light paper and the icon's red."
+msgstr "Papel claro e o vermelho do ícone."
+
+msgid "Vibration strength"
+msgstr "Intensidade da vibração"
+
+msgid "Theme"
+msgstr "Tema"
+
+msgid "Accent color"
+msgstr "Cor de destaque"
+
+msgid "The highlight and accent color of the theme in use."
+msgstr "O realce e a cor de destaque do tema em uso."
+
+msgid "Dark rose glass and petal pink."
+msgstr "Vidro rosa-escuro e rosa-pétala."
+
+msgid "Tropical dusk, dark green glass and lime."
+msgstr "Entardecer tropical, vidro verde-escuro e lima."
+
+msgid "Neutral glass, clean and still."
+msgstr "Vidro neutro, limpo e calmo."

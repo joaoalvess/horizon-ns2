@@ -43,12 +43,12 @@ msgstr ""
 msgid "A pairing is running already."
 msgstr ""
 
-#: pe/ui/home.cpp
+#: pe/ui/settings.cpp
 msgid "About"
 msgstr ""
 
-#: pe/ui/browse.cpp
-msgid "About EglantinePS5"
+#: pe/ui/settings.cpp
+msgid "ABOUT"
 msgstr ""
 
 #. Time left while downloading; {0} is a number of minutes. Keep it short.
@@ -93,11 +93,6 @@ msgstr ""
 msgid "ADD-ONS"
 msgstr ""
 
-#. {0}: updates, DLC and mods of the game; {1}: the language it will use.
-#: pe/ui/home.cpp
-msgid "Add-ons: {0}  /  Language: {1}"
-msgstr ""
-
 #: pe/ui/remote.cpp
 msgid "Added to the downloads. Settings, Downloads shows the queue."
 msgstr ""
@@ -106,12 +101,12 @@ msgstr ""
 msgid "Added. Cross plays as this profile; left and right change its name."
 msgstr ""
 
-#: pe/ui/settings.cpp
-msgid "Adjust the essentials without leaving your library behind."
-msgstr ""
-
 #: pe/ui/browse.cpp
 msgid "All credit for the Eglantine emulator goes to its developers and contributors."
+msgstr ""
+
+#: pe/ui/home.cpp
+msgid "All games"
 msgstr ""
 
 #: settings_store.h
@@ -165,7 +160,7 @@ msgid "Automatic"
 msgstr ""
 
 #. Button hint: go back one screen.
-#: pe/ui/browse.cpp, pe/ui/game_options.cpp, pe/ui/library.cpp, pe/ui/multiplayer.cpp, pe/ui/pairing.cpp, pe/ui/profiles.cpp, pe/ui/remote.cpp, pe/ui/save_sync.cpp, pe/ui/settings.cpp, pe/ui/update.cpp
+#: pe/ui/browse.cpp, pe/ui/game_options.cpp, pe/ui/home.cpp, pe/ui/library.cpp, pe/ui/multiplayer.cpp, pe/ui/pairing.cpp, pe/ui/profiles.cpp, pe/ui/remote.cpp, pe/ui/save_sync.cpp, pe/ui/settings.cpp, pe/ui/translations.cpp, pe/ui/update.cpp
 msgid "Back"
 msgstr ""
 
@@ -210,6 +205,10 @@ msgstr ""
 
 #: pe/ui/multiplayer.cpp
 msgid "Browse the public directory and choose a room."
+msgstr ""
+
+#: pe/ui/translations.cpp
+msgid "Browse translations"
 msgstr ""
 
 #. Which controller button presses each of the game's buttons.
@@ -264,6 +263,10 @@ msgstr ""
 msgid "Check that the code there is this one, and approve."
 msgstr ""
 
+#: pe/ui/library.cpp
+msgid "Check the game version, updates/ and any extra steps."
+msgstr ""
+
 #: pe/ui/remote.cpp
 msgid "Checking the game files {0}"
 msgstr ""
@@ -289,10 +292,6 @@ msgstr ""
 msgid "Choose"
 msgstr ""
 
-#: pe/ui/home.cpp
-msgid "Choose a game from your library."
-msgstr ""
-
 #: pe/ui/browse.cpp
 msgid "Choose the folder that holds your keys, firmware and games"
 msgstr ""
@@ -308,6 +307,14 @@ msgstr ""
 
 #: pe/ui/remote.cpp, pe/ui/update.cpp
 msgid "Close"
+msgstr ""
+
+#: pe/ui/settings.cpp
+msgid "Community PT-BR translations, installed directly on this console."
+msgstr ""
+
+#: pe/ui/translations.cpp
+msgid "Community translations from the CNX list"
 msgstr ""
 
 #. A switch: the program code a game used in earlier sessions is prepared (compiled) while the game starts. Keep it short.
@@ -327,7 +334,7 @@ msgstr ""
 msgid "Connect using a room address, port and password."
 msgstr ""
 
-#: pe/ui/home.cpp, pe/ui/multiplayer.cpp, pe/ui/settings.cpp
+#: pe/ui/home.cpp, pe/ui/multiplayer.cpp
 msgid "Connected"
 msgstr ""
 
@@ -347,20 +354,12 @@ msgstr ""
 msgid "Console mode"
 msgstr ""
 
-#: pe/ui/home.cpp
-msgid "CONTINUE PLAYING"
-msgstr ""
-
 #: pe/ui/settings.cpp
 msgid "Controller shortcuts and supported features."
 msgstr ""
 
 #: pe/ui/game_options.cpp
 msgid "Controller type"
-msgstr ""
-
-#: pe/ui/home.cpp
-msgid "CONTROLLERS"
 msgstr ""
 
 #: pe/ui/game_options.cpp, pe/ui/library.cpp, pe/ui/settings.cpp
@@ -411,6 +410,14 @@ msgstr ""
 msgid "Could not start the connection or save its settings."
 msgstr ""
 
+#: pe/ui/translations.cpp
+msgid "Could not start the translation operation. Please try again."
+msgstr ""
+
+#: pe/ui/home.cpp
+msgid "Could not update the shelf."
+msgstr ""
+
 #. The DualSense button labelled CREATE: keep the label if the language's players do.
 #: pe/ui/game_options.cpp
 msgid "Create"
@@ -426,7 +433,7 @@ msgstr ""
 msgid "Created {0}. Copy each mod's folder into it."
 msgstr ""
 
-#: pe/ui/browse.cpp
+#: pe/ui/browse.cpp, pe/ui/settings.cpp
 msgid "Credits and setup"
 msgstr ""
 
@@ -480,10 +487,6 @@ msgstr ""
 msgid "Detailed logs apply to the next game launch."
 msgstr ""
 
-#: pe/ui/settings.cpp
-msgid "Detailed logs on"
-msgstr ""
-
 #. Button hint: show the game's details.
 #: pe/ui/home.cpp
 msgid "Details"
@@ -510,7 +513,7 @@ msgstr ""
 msgid "Download"
 msgstr ""
 
-#: pe/ui/library.cpp
+#: pe/ui/home.cpp, pe/ui/library.cpp
 msgid "Download and play"
 msgstr ""
 
@@ -547,7 +550,7 @@ msgstr ""
 msgid "Downloading {0}"
 msgstr ""
 
-#: pe/ui/remote.cpp, pe/ui/settings.cpp
+#: pe/ui/home.cpp, pe/ui/remote.cpp, pe/ui/settings.cpp
 msgid "Downloads"
 msgstr ""
 
@@ -596,10 +599,6 @@ msgstr ""
 msgid "Edit"
 msgstr ""
 
-#: pe/ui/home.cpp
-msgid "Eglantine emulator for PlayStation 5"
-msgstr ""
-
 #: pe/ui/update.cpp
 msgid "EglantinePS5 closes now."
 msgstr ""
@@ -608,7 +607,7 @@ msgstr ""
 msgid "EglantinePS5 closes to finish the update."
 msgstr ""
 
-#: eden_services.cpp
+#: eden_services.cpp, host/fake_services.cpp
 msgid "EglantinePS5 could not get access to the console's storage, so it cannot read your settings, saves and games. Nothing was changed. Close EglantinePS5 and open it again. (Code {0})"
 msgstr ""
 
@@ -623,6 +622,10 @@ msgstr ""
 
 #: pe/ui/update.cpp
 msgid "EglantinePS5 was not changed."
+msgstr ""
+
+#: eden_services.cpp
+msgid "Encrypted game: needs keys and firmware"
 msgstr ""
 
 #. Label of the shortcut that ends the running game.
@@ -704,6 +707,14 @@ msgstr ""
 msgid "FASTER GPU EMULATION"
 msgstr ""
 
+#: pe/ui/settings.cpp
+msgid "Faster Switch 2 games, at some cost in accuracy."
+msgstr ""
+
+#: pe/ui/home.cpp
+msgid "Favorite"
+msgstr ""
+
 #: pe/ui/library.cpp
 msgid "FILE"
 msgstr ""
@@ -711,10 +722,6 @@ msgstr ""
 #. What a mod is made of: files that replace the game's own.
 #: eden_services.cpp, host/fake_services.cpp
 msgid "Files"
-msgstr ""
-
-#: pe/ui/settings.cpp
-msgid "Fine-tune your experience"
 msgstr ""
 
 #: pe/ui/browse.cpp
@@ -809,10 +816,6 @@ msgstr ""
 msgid "Game could not start: {0} Details: {1}"
 msgstr ""
 
-#: pe/ui/home.cpp
-msgid "Game details"
-msgstr ""
-
 #: pe/ui/library.cpp
 msgid "GAME DETAILS"
 msgstr ""
@@ -857,10 +860,6 @@ msgstr ""
 msgid "Games use this language when they offer it, and their own default otherwise. It applies when a game starts."
 msgstr ""
 
-#: pe/ui/home.cpp
-msgid "Games you launch will appear here."
-msgstr ""
-
 #: settings_store.h
 msgid "German"
 msgstr ""
@@ -899,6 +898,10 @@ msgstr ""
 msgid "How games are drawn and scaled to your TV."
 msgstr ""
 
+#: pe/ui/settings.cpp
+msgid "How Switch 2 games are drawn and scaled to your TV."
+msgstr ""
+
 #. Button hint: copy a save in.
 #: pe/ui/library.cpp
 msgid "Import"
@@ -921,8 +924,32 @@ msgstr ""
 msgid "IN USE"
 msgstr ""
 
+#: pe/ui/translations.cpp
+msgid "In your library"
+msgstr ""
+
 #: pe/ui/multiplayer.cpp
 msgid "Incompatible"
+msgstr ""
+
+#: pe/ui/translations.cpp
+msgid "Install"
+msgstr ""
+
+#: pe/ui/translations.cpp
+msgid "Installed"
+msgstr ""
+
+#: pe/ui/translations.cpp
+msgid "Installed manually"
+msgstr ""
+
+#: pe/ui/translations.cpp
+msgid "Installed outside the app. This folder is kept; only PT-BR CNX can be removed here."
+msgstr ""
+
+#: pe/ui/translations.cpp
+msgid "Invalid metadata"
 msgstr ""
 
 #: pe/ui/save_sync.cpp
@@ -995,6 +1022,10 @@ msgstr ""
 msgid "Keys and firmware: startup checks passed. Game-specific compatibility is checked at launch."
 msgstr ""
 
+#: eden_services.cpp, host/fake_services.cpp
+msgid "Keys or firmware missing: {0} Unencrypted games (.nup files, extracted game folders) start without them. For .nsp and .xci games, open Settings, Game files to choose the folder that holds your keys, firmware and roms folders (or add the files to {1}), then reopen EglantinePS5."
+msgstr ""
+
 #: eden_services.cpp
 msgid "Korea"
 msgstr ""
@@ -1031,10 +1062,6 @@ msgstr ""
 #. Caption under the title of the game played last.
 #: eden_services.cpp
 msgid "Last game opened"
-msgstr ""
-
-#: pe/ui/home.cpp
-msgid "Launch game"
 msgstr ""
 
 #: pe/ui/multiplayer.cpp
@@ -1082,8 +1109,16 @@ msgstr ""
 msgid "LIBRARY"
 msgstr ""
 
+#: pe/ui/theme.cpp
+msgid "Light paper and the icon's red."
+msgstr ""
+
 #: pe/ui/pairing.cpp, pe/ui/settings.cpp
 msgid "Linked"
+msgstr ""
+
+#: pe/ui/translations.cpp
+msgid "List updated."
 msgstr ""
 
 #: pe/ui/multiplayer.cpp
@@ -1092,11 +1127,6 @@ msgstr ""
 
 #: pe/ui/settings.cpp
 msgid "Lowest GPU accuracy: faster in demanding games, and graphics can be wrong."
-msgstr ""
-
-#. Headline of the Settings screen.
-#: pe/ui/settings.cpp
-msgid "Make it yours."
 msgstr ""
 
 #: pe/ui/settings.cpp
@@ -1119,7 +1149,7 @@ msgstr ""
 msgid "Menu sounds"
 msgstr ""
 
-#: eden_services.cpp, host/fake_services.cpp
+#: eden_services.cpp, host/fake_services.cpp, host/fake_services.hpp
 msgid "Missing or empty keys/prod.keys in {0}."
 msgstr ""
 
@@ -1147,10 +1177,6 @@ msgstr ""
 
 #: pe/ui/settings.cpp
 msgid "MUTE"
-msgstr ""
-
-#: pe/ui/settings.cpp
-msgid "Muted"
 msgstr ""
 
 #. Button hint: move the highlight.
@@ -1287,7 +1313,7 @@ msgstr ""
 msgid "No public rooms are available."
 msgstr ""
 
-#: pe/ui/library.cpp
+#: pe/ui/home.cpp, pe/ui/library.cpp
 msgid "No ROM files found."
 msgstr ""
 
@@ -1314,6 +1340,10 @@ msgstr ""
 
 #: pe/ui/remote.cpp
 msgid "Not connected yet"
+msgstr ""
+
+#: pe/ui/translations.cpp
+msgid "Not installed"
 msgstr ""
 
 #: pe/ui/pairing.cpp, pe/ui/settings.cpp
@@ -1367,10 +1397,6 @@ msgstr ""
 msgid "On"
 msgstr ""
 
-#: pe/ui/settings.cpp
-msgid "ON THIS CONSOLE"
-msgstr ""
-
 #: pe/ui/remote.cpp
 msgid "Only the first time takes long: the next start is at once."
 msgstr ""
@@ -1387,10 +1413,6 @@ msgstr ""
 
 #: pe/ui/update.cpp
 msgid "Open it again to use version {0}."
-msgstr ""
-
-#: pe/ui/home.cpp
-msgid "Open library"
 msgstr ""
 
 #. The DualSense button labelled OPTIONS: keep the label if the language's players do.
@@ -1449,7 +1471,7 @@ msgid "Overlay: worst frame"
 msgstr ""
 
 #. Button hint: jump a page of the list (L1 / R1).
-#: pe/ui/browse.cpp, pe/ui/multiplayer.cpp, pe/ui/update.cpp
+#: pe/ui/browse.cpp, pe/ui/home.cpp, pe/ui/multiplayer.cpp, pe/ui/update.cpp
 msgid "Page"
 msgstr ""
 
@@ -1499,12 +1521,12 @@ msgstr ""
 msgid "PERFORMANCE"
 msgstr ""
 
-#: pe/ui/save_sync.cpp
-msgid "Play anyway"
+#: pe/ui/home.cpp
+msgid "Pinned"
 msgstr ""
 
-#: pe/ui/profiles.cpp
-msgid "Play as"
+#: pe/ui/save_sync.cpp
+msgid "Play anyway"
 msgstr ""
 
 #: pe/ui/library.cpp
@@ -1549,10 +1571,6 @@ msgstr ""
 
 #: pe/ui/browse.cpp
 msgid "Powered by Eglantine"
-msgstr ""
-
-#: pe/ui/settings.cpp
-msgid "PREFERENCES"
 msgstr ""
 
 #. Update dialog headline while the download starts.
@@ -1618,6 +1636,22 @@ msgstr ""
 msgid "PS5 EDITION"
 msgstr ""
 
+#: pe/ui/library.cpp, pe/ui/translations.cpp
+msgid "PT-BR translation available (CNX)"
+msgstr ""
+
+#: pe/ui/library.cpp, pe/ui/translations.cpp
+msgid "PT-BR translation installed (CNX)"
+msgstr ""
+
+#: pe/ui/settings.cpp, pe/ui/translations.cpp
+msgid "PT-BR translations"
+msgstr ""
+
+#: pe/ui/settings.cpp
+msgid "PT-BR TRANSLATIONS"
+msgstr ""
+
 #: pe/ui/multiplayer.cpp
 msgid "Public rooms"
 msgstr ""
@@ -1652,6 +1686,10 @@ msgstr ""
 msgid "Read the lists again"
 msgstr ""
 
+#: pe/ui/translations.cpp
+msgid "Reading the CNX list..."
+msgstr ""
+
 #: pe/ui/remote.cpp
 msgid "Reading the game lists..."
 msgstr ""
@@ -1660,7 +1698,7 @@ msgstr ""
 msgid "Reading the game's files from the server"
 msgstr ""
 
-#: pe/ui/remote.cpp, pe/ui/settings.cpp
+#: pe/ui/home.cpp, pe/ui/remote.cpp, pe/ui/settings.cpp
 msgid "Reading..."
 msgstr ""
 
@@ -1668,8 +1706,8 @@ msgstr ""
 msgid "Ready"
 msgstr ""
 
-#: pe/ui/home.cpp
-msgid "RECENTLY PLAYED"
+#: pe/ui/home.cpp, pe/ui/library.cpp
+msgid "Recommended"
 msgstr ""
 
 #: pe/ui/settings.cpp
@@ -1703,7 +1741,7 @@ msgstr ""
 msgid "Regular"
 msgstr ""
 
-#: pe/ui/profiles.cpp
+#: pe/ui/translations.cpp
 msgid "Remove"
 msgstr ""
 
@@ -1775,7 +1813,7 @@ msgid "Sandboxed (code {0}): app folder only"
 msgstr ""
 
 #. A row of a game's settings: the game's saved progress, which can be copied in or out.
-#: pe/ui/library.cpp
+#: pe/ui/home.cpp, pe/ui/library.cpp
 msgid "Save data"
 msgstr ""
 
@@ -1830,6 +1868,10 @@ msgstr ""
 
 #: pe/ui/game_options.cpp, pe/ui/library.cpp
 msgid "Saved for this game. Applies on next launch."
+msgstr ""
+
+#: pe/ui/translations.cpp
+msgid "Saved list. Updated once a day."
 msgstr ""
 
 #: pe/ui/save_sync.cpp
@@ -1893,7 +1935,7 @@ msgstr ""
 msgid "Server too old for save sync"
 msgstr ""
 
-#: pe/ui/home.cpp, pe/ui/settings.cpp
+#: pe/ui/home.cpp
 msgid "Settings"
 msgstr ""
 
@@ -1904,10 +1946,6 @@ msgstr ""
 
 #: eden_services.cpp, host/fake_services.cpp
 msgid "Setup required"
-msgstr ""
-
-#: eden_services.cpp, host/fake_services.cpp
-msgid "Setup required: {0} Open Settings, Game files to choose the folder that holds your keys, firmware and roms folders (or add the files to {1}), then reopen EglantinePS5."
 msgstr ""
 
 #: pe/ui/settings.cpp
@@ -1976,6 +2014,10 @@ msgstr ""
 msgid "Solid panels, brighter text and an outlined highlight."
 msgstr ""
 
+#: pe/ui/translations.cpp
+msgid "Some translations require a specific game version or extra steps. Check the release instructions and the update in updates/."
+msgstr ""
+
 #: pe/ui/library.cpp
 msgid "SOURCE"
 msgstr ""
@@ -2025,6 +2067,10 @@ msgstr ""
 
 #: pe/ui/browse.cpp
 msgid "Supply your own files"
+msgstr ""
+
+#: pe/ui/home.cpp, pe/ui/settings.cpp
+msgid "Switch / Switch 2"
 msgstr ""
 
 #: pe/ui/settings.cpp
@@ -2151,8 +2197,16 @@ msgstr ""
 msgid "The server runs RomM {0}; the save sync needs RomM {1} or newer. Update the server: until then no save data is synced with it."
 msgstr ""
 
+#: pe/ui/home.cpp
+msgid "The shelf already has 24 pinned games."
+msgstr ""
+
 #: pe/ui/remote.cpp
 msgid "The source no longer has this game."
+msgstr ""
+
+#: pe/ui/translations.cpp
+msgid "The translation list is unavailable."
 msgstr ""
 
 #: pe/ui/update.cpp
@@ -2185,8 +2239,16 @@ msgstr ""
 msgid "This game"
 msgstr ""
 
+#: pe/ui/home.cpp
+msgid "This game cannot be pinned."
+msgstr ""
+
 #: eden_services.cpp
 msgid "This game has no save to export yet."
+msgstr ""
+
+#: eden_services.cpp, host/fake_services.hpp
+msgid "This game is encrypted and needs keys and firmware: {0}"
 msgstr ""
 
 #: pe/ui/library.cpp
@@ -2215,6 +2277,18 @@ msgstr ""
 msgid "Touchpad"
 msgstr ""
 
+#: pe/ui/library.cpp
+msgid "Translation details"
+msgstr ""
+
+#: pe/ui/translations.cpp
+msgid "Translation updated. Applies on next launch."
+msgstr ""
+
+#: pe/ui/home.cpp
+msgid "Translations"
+msgstr ""
+
 #. A DualSense button.
 #: pe/ui/game_options.cpp
 msgid "Triangle"
@@ -2241,12 +2315,20 @@ msgstr ""
 msgid "UDP port"
 msgstr ""
 
-#: pe/ui/game_options.cpp, pe/ui/library.cpp, pe/ui/settings.cpp
+#: pe/ui/game_options.cpp, pe/ui/library.cpp, pe/ui/settings.cpp, pe/ui/translations.cpp
 msgid "Unavailable"
 msgstr ""
 
 #: pe/ui/save_sync.cpp
 msgid "Understood"
+msgstr ""
+
+#: eden_services.cpp, host/fake_services.cpp
+msgid "Unencrypted games (.nup files, extracted game folders) start without keys and firmware."
+msgstr ""
+
+#: eden_services.cpp, host/fake_services.cpp, pe/ui/settings.cpp
+msgid "Unencrypted games only"
 msgstr ""
 
 #: pe/ui/pairing.cpp
@@ -2290,6 +2372,10 @@ msgstr ""
 msgid "UPDATES, DLC"
 msgstr ""
 
+#: pe/ui/translations.cpp
+msgid "Updating the list..."
+msgstr ""
+
 #: pe/ui/game_options.cpp, pe/ui/settings.cpp
 msgid "Upscaling filter"
 msgstr ""
@@ -2308,6 +2394,10 @@ msgstr ""
 
 #: pe/ui/browse.cpp
 msgid "Use this folder"
+msgstr ""
+
+#: pe/ui/settings.cpp
+msgid "VERSION"
 msgstr ""
 
 #. {0} is the app's new version number, for example 1.000.060.
@@ -2334,14 +2424,6 @@ msgid "VIBRATION"
 msgstr ""
 
 #: pe/ui/settings.cpp
-msgid "Vibration off"
-msgstr ""
-
-#: pe/ui/settings.cpp
-msgid "Vibration on"
-msgstr ""
-
-#: pe/ui/settings.cpp
 msgid "Vibration strength"
 msgstr ""
 
@@ -2357,8 +2439,8 @@ msgstr ""
 msgid "VIDEO"
 msgstr ""
 
-#: pe/ui/home.cpp
-msgid "VIEW ALL GAMES"
+#: pe/ui/launcher.cpp
+msgid "Wait for the translation installation or removal to finish."
 msgstr ""
 
 #. Vulkan is a name (unchanged).
@@ -2404,6 +2486,10 @@ msgstr ""
 msgid "with {0}"
 msgstr ""
 
+#: pe/ui/translations.cpp
+msgid "Working..."
+msgstr ""
+
 #: pe/ui/settings.cpp
 msgid "Write logs at once"
 msgstr ""
@@ -2423,11 +2509,6 @@ msgstr ""
 #. Update dialog: installing the new app version keeps the player's files.
 #: pe/ui/update.cpp
 msgid "Your games, saves and settings are kept."
-msgstr ""
-
-#. Headline when no game has been played yet.
-#: pe/ui/home.cpp
-msgid "Your next adventure"
 msgstr ""
 
 #: pe/ui/save_sync.cpp
@@ -2463,7 +2544,7 @@ msgid "{0} game lists could not be read."
 msgstr ""
 
 #. Any number of games other than one (also 0). See '{0} game'.
-#: pe/ui/browse.cpp, pe/ui/remote.cpp, pe/ui/settings.cpp
+#: pe/ui/browse.cpp, pe/ui/home.cpp, pe/ui/remote.cpp, pe/ui/settings.cpp
 msgid "{0} games"
 msgstr ""
 
@@ -2517,10 +2598,6 @@ msgstr ""
 msgid "{0} of {1} on"
 msgstr ""
 
-#: pe/ui/settings.cpp
-msgid "{0} of {1} profiles"
-msgstr ""
-
 #: pe/ui/save_sync.cpp
 msgid "{0} on {1}"
 msgstr ""
@@ -2529,12 +2606,12 @@ msgstr ""
 msgid "{0} public rooms"
 msgstr ""
 
-#: pe/ui/settings.cpp
-msgid "{0} shares"
+#: pe/ui/remote.cpp
+msgid "{0} sources"
 msgstr ""
 
-#: pe/ui/remote.cpp, pe/ui/settings.cpp
-msgid "{0} sources"
+#: pe/ui/settings.cpp, pe/ui/translations.cpp
+msgid "{0} translations"
 msgstr ""
 
 #: pe/ui/save_sync.cpp

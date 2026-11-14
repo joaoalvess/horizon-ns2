@@ -68,6 +68,7 @@ class Launcher
         files,
         language,
         about,
+        translations,
     };
     enum class Modal : std::uint8_t
     {
@@ -142,15 +143,24 @@ class Launcher
     // ---- home (home.cpp) ----
     void press_home(Key key);
     void update_controllers(float dt);
+    void update_shelf(float dt);
+    // Moves the shelf onto a game. False when the index is already focused.
+    bool select_shelf(int index);
     void draw_home(Canvas &c);
-    void draw_controllers(Canvas &c);
-    void open_library_at_last();
+    void press_shelf_grid(Key key);
+    void draw_shelf_grid(Canvas &c);
+    void open_dock_item();
+    void draw_profile_bar(Canvas &c, bool platforms);
+    float draw_brand_bar(Canvas &c);
 
     // ---- library and game settings (library.cpp) ----
     // The game list is read beside the menu: reading every game takes a moment.
     void start_scan();
     void finish_scan(bool wait);
     void apply_games(std::vector<Game> games);
+    void choose_platform(int platform);
+    // Puts favorites, then the last game, then recents, at the front. Keeps the selection.
+    void reseat_shelf();
     void name_home_games();
     // The home screen's content, with its game's mods counted.
     void read_home();
@@ -169,15 +179,25 @@ class Launcher
     static std::string hertz(int refresh);
     void enter_library();
     void press_library(Key key);
+    // Triangle on the focused game: its settings, or a reason they cannot open.
+    void open_game_panel();
     void draw_library(Canvas &c);
     void refresh_selected_game();
     void press_game(Key key);
-    void draw_game(Canvas &c, float open);
+    void draw_game(Canvas &c, float open, bool behind = false);
     // What a row of the game settings dialog is (GameRow in library.cpp): Save data is there in
     // builds that move saves, and the deleting of a game a download source has (it comes back from there).
     int game_row(int row) const;
     void press_mods(Key key);
     void draw_mods(Canvas &c, float open);
+    void poll_translations(float dt);
+    void open_translations(std::uint64_t title_id = 0);
+    void press_translations(Key key);
+    void draw_translations(Canvas &c);
+    const Translation *translation_of(std::uint64_t title_id) const;
+    const char *translation_action(const Translation &entry) const;
+    void change_translation(const Translation &entry);
+    bool translation_in_library(const Translation &entry) const;
 
     // ---- a game's own settings by category, and the button mapping (game_options.cpp) ----
     // Categories, in the order of the game settings' rows: video, performance, audio, controls,
@@ -207,6 +227,8 @@ class Launcher
     // ---- settings and its dialogs (settings.cpp) ----
     void press_settings(Key key);
     void draw_settings(Canvas &c);
+    // Categories in the settings list. The panel shows fewer and scrolls.
+    static int settings_rows();
     void press_dialog(Key key);
     void draw_dialog(Canvas &c, Modal modal, float open);
     int dialog_rows(Modal modal) const;
@@ -240,7 +262,8 @@ class Launcher
     // share, failed.
     std::string remote_state(const Game &game, Color *color) const;
     // The cover of a game on its sources: darker, with a cloud at its bottom right.
-    static void remote_cover(Canvas &c, const std::string &path, const Rect &r, float radius, float shadow = 0.0f);
+    static void remote_cover(Canvas &c, const std::string &path, const Rect &r, float radius,
+                             float shadow = 0.0f, std::string_view mark = {});
     // Cross on one: downloaded first and started (the download dialog). Square: into the queue,
     // or out of it. With several sources, which one is asked first (the source dialog).
     void play_remote(const Game &game);
@@ -379,20 +402,26 @@ class Launcher
     tween::Timer launch_;
     bool done_ = false;
 
-    // home: 0 continue, 1-3 header, 4 game details, 5-8 recent, 9 view all
     Home home_;
     // The controllers connected now (bit 0 is player 1), and how lit each one's icon is.
     unsigned controllers_ = 0;
     bool controllers_known_ = false;
     std::array<tween::Spring, 4> controller_lit_{};
     std::array<float, 4> controller_pop_{}; // 1 when a controller appears, then decays
-    int home_focus_ = 0;
-    std::array<tween::Spring, 10> home_springs_{};
+    // The home's dock has the focus. The game above it is library_.selected.
+    bool shelf_settings_ = false;
+    tween::Spring shelf_scroll_;
+    bool shelf_all_ = false;
+    bool shelf_grid_ = false;
+    int dock_ = 5;
     float intro_ = 0.0f;
     bool first_start_ = true;
 
     // library
     std::vector<Game> games_;
+    std::vector<Game> all_games_;
+    int platform_ = 0;
+    std::vector<std::string> favorites_;
     std::future<std::vector<Game>> scan_; // the list being read
     bool games_loaded_ = false;
     ListView library_;
@@ -426,6 +455,11 @@ class Launcher
     };
     std::vector<ModRow> mod_list_;
     ListView mod_rows_;
+    Translations translations_;
+    ListView translation_rows_;
+    Screen translations_return_ = Screen::settings;
+    Modal translations_modal_ = Modal::none;
+    float translations_wait_ = 0.0f;
     int game_options_ = 0;          // the category a game's own settings dialog shows
     ListView option_rows_;          // its rows
     std::atomic<bool> prepare_stop_{false};

@@ -15,7 +15,6 @@ namespace pe::ui
 namespace
 {
 
-constexpr float kTau = 6.28318530718f;
 FitReport fit_report = nullptr;
 
 // A text colour as shown: with high contrast, greys go most of the way to white and accents a
@@ -46,17 +45,26 @@ float draw_text(Canvas &c, std::string_view value, float x, float baseline, floa
 const Color kWhite{1.0f, 1.0f, 1.0f, 1.0f};
 const Color kBlack{0.0f, 0.0f, 0.0f, 1.0f};
 
-// A repeatable 0..1 value for element `index` and property `salt`.
-float noise(int index, int salt)
+// The first letter of a game's name, for a cover that has no picture.
+std::string cover_mark(std::string_view name)
 {
-    std::uint32_t value = static_cast<std::uint32_t>(index) * 0x9e3779b1u +
-                          static_cast<std::uint32_t>(salt) * 0x85ebca6bu + 0x27d4eb2fu;
-    value ^= value >> 15;
-    value *= 0x2c1b3c6du;
-    value ^= value >> 12;
-    value *= 0x297a2d39u;
-    value ^= value >> 15;
-    return static_cast<float>(value >> 8) / 16777216.0f;
+    if (name.empty())
+        return {};
+    const auto lead = static_cast<unsigned char>(name[0]);
+    if (lead < 0x80)
+    {
+        const char letter =
+            lead >= 'a' && lead <= 'z' ? static_cast<char>(lead - 32) : static_cast<char>(lead);
+        return std::string(1, letter);
+    }
+    std::size_t length = 1;
+    if ((lead & 0xe0) == 0xc0)
+        length = 2;
+    else if ((lead & 0xf0) == 0xe0)
+        length = 3;
+    else if ((lead & 0xf8) == 0xf0)
+        length = 4;
+    return std::string(name.substr(0, std::min(length, name.size())));
 }
 
 } // namespace
@@ -85,44 +93,9 @@ Rect Backdrop::uv(const Rect &r) const
 
 void Backdrop::draw(gfx::DrawList &list, const Textures &textures, float dim) const
 {
+    (void)textures;
     const Rect screen{0.0f, 0.0f, 1920.0f, 1080.0f};
     list.rounded_rect(screen, 0.0f, th().base);
-    const Rect a = art();
-    if (textures.backdrop() != 0)
-        list.image(textures.backdrop(), a, {0.0f, 0.0f, 1.0f, 1.0f}, kWhite);
-
-    // The sun breathes.
-    const float sun_x = a.x + 0.710f * a.w;
-    const float sun_y = a.y + 0.391f * a.h;
-    const float breath = 0.5f + 0.5f * std::sin(time_ * 0.55f);
-    list.shadow({sun_x - 150.0f, sun_y - 150.0f, 300.0f, 300.0f}, 150.0f, 170.0f,
-                th().highlight.with_alpha(0.03f + 0.04f * breath));
-
-    // Motes of light rise over the water, nearer than the art.
-    constexpr int kMotes = 26;
-    constexpr float kSpan = 640.0f;
-    const float near_x = (a.x + 64.0f) * 1.7f;
-    const float near_y = (a.y + 36.0f) * 1.7f;
-    for (int i = 0; i < kMotes && !look().reduce_motion && !look().high_contrast; ++i)
-    {
-        const float speed = 6.0f + 11.0f * noise(i, 2);
-        const float travel = std::fmod(time_ * speed + noise(i, 3) * kSpan, kSpan);
-        const float life = std::sin(3.14159265f * travel / kSpan);
-        const float x = 800.0f + 1120.0f * noise(i, 1) + near_x +
-                        28.0f * std::sin(time_ * (0.21f + 0.2f * noise(i, 4)) + kTau * noise(i, 5));
-        const float y = 900.0f - travel + near_y;
-        const float size = 3.0f + 5.0f * noise(i, 6);
-        const float twinkle =
-            0.65f + 0.35f * std::sin(time_ * (0.9f + 1.4f * noise(i, 7)) + kTau * noise(i, 8));
-        const float alpha = 0.30f * life * twinkle;
-        const Color color = gfx::mix(th().accent_pale, th().highlight, noise(i, 9));
-        list.shadow({x - size, y - size, size * 2.0f, size * 2.0f}, size, size * 0.9f,
-                    color.with_alpha(alpha));
-        list.circle(x, y, size * 0.28f, color.with_alpha(std::min(1.0f, alpha * 1.8f)));
-    }
-    // High contrast: the art steps back behind everything.
-    if (look().high_contrast)
-        dim = std::max(dim, 0.62f);
     if (dim > 0.0f)
         list.rounded_rect(screen, 0.0f, th().scrim.with_alpha(dim));
 }
@@ -261,73 +234,44 @@ float value_column(Canvas &c, std::initializer_list<std::string_view> labels, fl
 
 void glass(Canvas &c, const Rect &r, float radius, Color tint, Color edge, float shadow)
 {
+    (void)tint;
     if (shadow > 0.0f)
-        c.list.shadow({r.x + 6.0f, r.y + 20.0f, r.w - 12.0f, r.h - 8.0f}, radius, 48.0f,
-                      kBlack.with_alpha(0.42f * shadow));
+        c.list.shadow({r.x + 6.0f, r.y + 16.0f, r.w - 12.0f, r.h - 8.0f}, radius, 28.0f,
+                      kBlack.with_alpha(0.08f * shadow));
     if (look().high_contrast)
     {
-        // A solid panel with a clear edge: nothing of the art shows through the text.
-        c.list.bordered_rect(r, radius, th().hc_panel, 2.0f, th().hc_panel_edge);
+        c.list.bordered_rect(r, radius, th().base, 2.0f, th().text);
         return;
     }
-    if (c.textures.backdrop_blur() != 0)
-        c.list.rounded_image(c.textures.backdrop_blur(), r, c.backdrop.uv(r), radius, kWhite);
-    c.list.bordered_rect(r, radius, tint, 1.0f, edge);
-    // Light catches the top edge.
-    const float sheen = std::min(r.h * 0.45f, 150.0f);
-    c.list.gradient_rect({r.x + 1.0f, r.y + 1.0f, r.w - 2.0f, sheen}, radius,
-                         kWhite.with_alpha(0.045f), kWhite.with_alpha(0.0f));
+    c.list.bordered_rect(r, radius, th().panel, 1.0f, edge.a > 0.0f ? th().panel_edge : edge);
 }
 
 Plate row_plate()
 {
-    return {15.0f,
-            th().row.with_alpha(0.90f),
-            th().row_edge.with_alpha(0.47f),
-            th().row_focus.with_alpha(0.95f),
-            th().accent.with_alpha(0.44f),
-            th().accent_deep.with_alpha(0.50f),
-            th().accent.with_alpha(0.63f)};
+    return {10.0f, th().row, th().row_edge, th().row_focus, th().row_focus, th().row_focus, th().row_edge};
 }
 Plate list_plate()
 {
-    return {13.0f,
-            th().list_row.with_alpha(0.91f),
-            th().list_row_edge.with_alpha(0.47f),
-            th().list_row_focus.with_alpha(0.95f),
-            th().accent.with_alpha(0.44f),
-            th().accent_deep.with_alpha(0.50f),
-            th().accent.with_alpha(0.63f)};
+    return {10.0f, th().list_row, th().list_row_edge, th().list_row_focus, th().list_row_focus,
+            th().list_row_focus, th().list_row_edge};
 }
 Plate button_plate()
 {
-    return {12.0f,
-            th().button_fill.with_alpha(0.10f),
-            kWhite.with_alpha(0.19f),
-            th().plate_focus.with_alpha(0.55f),
-            th().accent.with_alpha(0.50f),
-            th().accent_deep.with_alpha(0.44f),
-            th().accent.with_alpha(0.63f)};
+    return {10.0f, th().row, th().row_edge, th().row_focus, th().row_focus, th().row_focus, th().row_edge};
 }
 Plate tile_plate()
 {
-    return {12.0f,
-            th().tile_fill.with_alpha(0.06f),
-            kWhite.with_alpha(0.125f),
-            th().plate_focus.with_alpha(0.45f),
-            th().accent.with_alpha(0.345f),
-            th().accent_deep.with_alpha(0.376f),
-            th().accent.with_alpha(0.63f)};
+    return {10.0f, th().row, th().row_edge, th().row_focus, th().row_focus, th().row_focus, th().row_edge};
 }
 Plate nav_plate()
 {
-    return {12.0f,
+    return {10.0f,
             kWhite.with_alpha(0.0f),
             kWhite.with_alpha(0.0f),
-            th().plate_focus.with_alpha(0.0f),
-            th().accent.with_alpha(0.31f),
-            th().accent_deep.with_alpha(0.31f),
-            th().accent.with_alpha(0.50f)};
+            th().row_focus,
+            th().row_focus,
+            th().row_focus,
+            th().row_edge};
 }
 
 void plate_rest(Canvas &c, const Plate &style, const Rect &r)
@@ -335,7 +279,7 @@ void plate_rest(Canvas &c, const Plate &style, const Rect &r)
     if (style.fill.a <= 0.0f && style.edge.a <= 0.0f)
         return;
     if (look().high_contrast)
-        c.list.bordered_rect(r, style.radius, th().hc_row, 1.5f, th().hc_row_edge);
+        c.list.bordered_rect(r, style.radius, th().base, 1.5f, th().panel_edge);
     else
         c.list.bordered_rect(r, style.radius, style.fill, 1.0f, style.edge);
 }
@@ -346,20 +290,15 @@ void plate_focus(Canvas &c, const Plate &style, const Rect &r, float amount)
         return;
     if (look().high_contrast)
     {
-        // The highlight is a dark fill inside a bright outline: it does not rest on colour.
-        c.list.bordered_rect(r, style.radius, th().hc_focus.with_alpha(amount), 3.0f,
-                             th().hc_focus_edge.with_alpha(amount));
+        c.list.bordered_rect(r, style.radius, th().row_focus.with_alpha(amount), 2.0f,
+                             th().text.with_alpha(amount));
         return;
     }
-    // The highlight glows, breathing slowly.
-    const float glow = 0.17f + 0.07f * std::sin(c.time * 2.6f * motion());
-    c.list.shadow({r.x - 2.0f, r.y + 2.0f, r.w + 4.0f, r.h + 2.0f}, style.radius + 2.0f, 26.0f,
-                  th().accent.with_alpha(glow * amount));
     if (style.focus_base.a > 0.0f)
+    {
         c.list.rounded_rect(r, style.radius, style.focus_base.with_alpha(amount));
-    c.list.hgradient_rect(r, style.radius, style.focus_left.with_alpha(amount),
-                          style.focus_right.with_alpha(amount), 1.5f,
-                          style.focus_edge.with_alpha(amount));
+        c.list.bordered_rect(r, style.radius, kWhite.with_alpha(0.0f), 3.0f, th().accent.with_alpha(amount));
+    }
 }
 
 void plate(Canvas &c, const Plate &style, const Rect &r, float focus)
@@ -368,25 +307,26 @@ void plate(Canvas &c, const Plate &style, const Rect &r, float focus)
     plate_focus(c, style, r, focus);
 }
 
-void cover(Canvas &c, const std::string &path, const Rect &r, float radius, float shadow)
+void cover(Canvas &c, const std::string &path, const Rect &r, float radius, float shadow,
+           std::string_view mark)
 {
     if (shadow > 0.0f)
         c.list.shadow({r.x + 3.0f, r.y + 10.0f * shadow, r.w - 6.0f, r.h - 4.0f}, radius,
-                      24.0f * shadow, kBlack.with_alpha(0.5f));
+                      24.0f * shadow, kBlack.with_alpha(0.18f));
     const Cover image = c.textures.cover(path, r.w);
     const float fade = image.texture != 0 ? tween::cubic_out(image.age / 0.22f) : 0.0f;
     if (fade < 1.0f)
     {
-        // A dark tile until the cover is ready; the app icon when the game has none.
-        c.list.gradient_rect(r, radius, th().cover_top, th().cover_bottom);
-        if (image.missing && c.textures.brand() != 0)
-            c.list.rounded_image(c.textures.brand(), r, {0.0f, 0.0f, 1.0f, 1.0f}, radius,
-                                 kWhite.with_alpha(0.92f));
+        c.list.rounded_rect(r, radius, th().row);
+        const std::string letter = cover_mark(mark);
+        if (!letter.empty() && (image.missing || image.texture == 0))
+            text(c, letter, r.x + r.w * 0.5f, baseline(r.y, r.h, th().size_display), th().size_display,
+                 th().faint, Align::center);
     }
     if (image.texture != 0)
         c.list.rounded_image(image.texture, r, {0.0f, 0.0f, 1.0f, 1.0f}, radius,
                              kWhite.with_alpha(fade));
-    c.list.bordered_rect(r, radius, kWhite.with_alpha(0.0f), 1.0f, kWhite.with_alpha(0.10f));
+    c.list.bordered_rect(r, radius, kWhite.with_alpha(0.0f), 1.0f, th().panel_edge.with_alpha(0.45f));
 }
 
 void controller_icon(Canvas &c, const Rect &r, float lit)
@@ -403,7 +343,7 @@ void controller_icon(Canvas &c, const Rect &r, float lit)
                       14.0f * u, 22.0f * u, th().accent.with_alpha(0.26f * lit * breath));
     }
     c.list.image(picture, r, {0.0f, 0.0f, 1.0f, 1.0f},
-                 gfx::mix(kWhite.with_alpha(0.16f), th().controller, lit));
+                 gfx::mix(th().faint.with_alpha(0.6f), th().title, lit));
     if (lit > 0.01f)
     {
         // The light bar on either side of the touchpad.
@@ -418,28 +358,26 @@ void toggle(Canvas &c, float right, float cy, float position)
     constexpr float kWidth = 64.0f;
     constexpr float kHeight = 34.0f;
     const Rect track{right - kWidth, cy - kHeight * 0.5f, kWidth, kHeight};
-    c.list.bordered_rect(track, kHeight * 0.5f, th().toggle_track.with_alpha(0.95f), 1.0f,
-                         th().row_edge.with_alpha(0.7f));
-    c.list.hgradient_rect(track, kHeight * 0.5f, th().accent.with_alpha(0.95f * position),
-                          th().toggle_end.with_alpha(0.95f * position));
+    c.list.rounded_rect(track, kHeight * 0.5f, th().toggle_track);
+    c.list.rounded_rect(track, kHeight * 0.5f, th().accent.with_alpha(0.95f * position));
     const float knob_x = track.x + kHeight * 0.5f + (kWidth - kHeight) * position;
-    c.list.shadow({knob_x - 12.0f, cy - 10.0f, 24.0f, 24.0f}, 12.0f, 6.0f, kBlack.with_alpha(0.35f));
-    c.list.circle(knob_x, cy, 12.5f, gfx::mix(th().copy, th().title, position));
+    c.list.shadow({knob_x - 12.0f, cy - 10.0f, 24.0f, 24.0f}, 12.0f, 6.0f, kBlack.with_alpha(0.18f));
+    c.list.circle(knob_x, cy, 12.5f, kWhite);
 }
 
 void level_bar(Canvas &c, float right, float cy, float width, float level, float focus)
 {
     constexpr float kHeight = 8.0f;
     const Rect track{right - width, cy - kHeight * 0.5f, width, kHeight};
-    c.list.rounded_rect(track, kHeight * 0.5f, th().level_track.with_alpha(0.95f));
+    c.list.rounded_rect(track, kHeight * 0.5f, th().toggle_track);
     const float filled = std::max(kHeight, width * std::clamp(level, 0.0f, 1.0f));
     if (level > 0.0f)
         c.list.hgradient_rect({track.x, track.y, filled, kHeight}, kHeight * 0.5f, th().accent_deep,
                               th().accent);
     const float knob = 7.0f + 3.0f * focus;
     c.list.shadow({track.x + filled - knob, cy - knob + 2.0f, knob * 2.0f, knob * 2.0f}, knob, 5.0f,
-                  kBlack.with_alpha(0.35f));
-    c.list.circle(track.x + (level > 0.0f ? filled : 0.0f), cy, knob, th().title);
+                  kBlack.with_alpha(0.18f));
+    c.list.circle(track.x + (level > 0.0f ? filled : 0.0f), cy, knob, kWhite);
 }
 
 float chooser(Canvas &c, std::string_view value, float right, float baseline, float focus,
@@ -471,6 +409,8 @@ float pad_width(Pad button, float size)
         return 0.0f;
     case Pad::l1:
     case Pad::r1:
+    case Pad::l2:
+    case Pad::r2:
         return size * 1.45f;
     default:
         return size;
@@ -545,11 +485,13 @@ void draw_pad(Canvas &c, Pad button, float x, float cy, float size, float alpha)
     }
     case Pad::l1:
     case Pad::r1:
+    case Pad::l2:
+    case Pad::r2:
     {
         const float height = size * 0.80f;
         c.list.bordered_rect({x, cy - height * 0.5f, width, height}, height * 0.30f,
                              ink.with_alpha(0.0f), 1.6f, ring);
-        draw_text(c, button == Pad::l1 ? "L1" : "R1", cx, cy + size * 0.17f, size * 0.48f,
+        draw_text(c, button == Pad::l1 ? "L1" : button == Pad::r1 ? "R1" : button == Pad::l2 ? "L2" : "R2", cx, cy + size * 0.17f, size * 0.48f,
                   size * 0.48f, ink, Align::center, 0.0f);
         return;
     }
@@ -692,11 +634,10 @@ void scrollbar(Canvas &c, const ListView &view, float x, float y, float height)
 {
     if (view.count <= view.visible)
         return;
-    c.list.rounded_rect({x, y, 10.0f, height}, 5.0f, th().scroll_track.with_alpha(0.53f));
+    c.list.rounded_rect({x, y, 10.0f, height}, 5.0f, th().row_edge.with_alpha(0.55f));
     const float thumb = std::max(
         64.0f, height * static_cast<float>(view.visible) / static_cast<float>(view.count));
-    c.list.rounded_rect({x, y + (height - thumb) * view.thumb(), 10.0f, thumb}, 5.0f,
-                        th().scroll_thumb);
+    c.list.rounded_rect({x, y + (height - thumb) * view.thumb(), 10.0f, thumb}, 5.0f, th().accent_pale);
 }
 
 void arc(gfx::DrawList &list, float cx, float cy, float radius, float width, float start, float sweep, Color color)

@@ -38,13 +38,14 @@ Launcher::Launcher(Services &services, Textures &textures, const Fonts &fonts, b
     downloads_ = services_.downloads();
     apply_look();
     read_profiles();
+    favorites_ = services_.favorites();
     read_home();
-    const bool continue_ready = home_.setup_ready && home_.last_exists;
-    home_focus_ = continue_ready ? 0 : home_.setup_ready ? 1 : 2;
-    home_springs_[static_cast<std::size_t>(home_focus_)].snap(1.0f);
-    settings_.visible = 13;
-    settings_.pitch = 48.0f;
-    settings_.reset(13, 0);
+    // Until the game list arrives, Settings is where an empty shelf can go.
+    shelf_settings_ = !home_.setup_ready;
+    // The whole category list fits the column.
+    settings_.visible = 15;
+    settings_.pitch = 50.0f;
+    settings_.reset(settings_rows(), 0);
     section_.snap(1.0f);
     detail_.snap(1.0f);
     cue(home_.launch_failed ? Cue::notify : first_start ? Cue::welcome : Cue::resume);
@@ -193,6 +194,11 @@ void Launcher::launch(const std::string &file, const std::string &title, const s
 
 void Launcher::start_game(const std::string &file, const std::string &title, const std::string &cover)
 {
+    if (translations_.busy) {
+        say(tr("Wait for the translation installation or removal to finish."), true);
+        cue(Cue::error);
+        return;
+    }
     if (!services_.can_launch_game()) {
         say(tr("Join a room successfully or leave it before starting a game."), true);
         cue(Cue::error);
@@ -267,13 +273,15 @@ void Launcher::press(Key key)
         return press_library(key);
     case Screen::settings:
         return press_settings(key);
+    case Screen::translations:
+        return press_translations(key);
     case Screen::files:
         return press_files(key);
     case Screen::language:
         return press_language(key);
     case Screen::about:
         if (key == Key::circle)
-            open(Screen::home, false);
+            open(Screen::settings, false);
         return;
     }
 }
@@ -287,6 +295,7 @@ void Launcher::update(float dt)
     textures_.pump(dt);
     finish_scan(false);
     poll_sources(dt);
+    poll_translations(dt);
     poll_save_sync(dt);
     poll_pairing(dt);
     refresh_sync_setup(dt);
@@ -302,14 +311,9 @@ void Launcher::update(float dt)
     modal_open_.update(dt, 20.0f);
     if (modal_ == Modal::none && modal_open_.value < 0.01f)
         modal_shown_ = Modal::none;
-    dim_.target = screen_ == Screen::home ? 0.0f : 0.30f;
+    dim_.target = 0.0f;
     dim_.update(dt, 8.0f);
-
-    for (std::size_t i = 0; i < home_springs_.size(); ++i)
-    {
-        home_springs_[i].target = static_cast<int>(i) == home_focus_ ? 1.0f : 0.0f;
-        home_springs_[i].update(dt, th().focus_spring);
-    }
+    update_shelf(dt);
     library_.update(dt);
     settings_.update(dt);
     files_.update(dt);
@@ -319,6 +323,7 @@ void Launcher::update(float dt)
     accessibility_rows_.update(dt);
     game_rows_.update(dt);
     mod_rows_.update(dt);
+    translation_rows_.update(dt);
     option_rows_.update(dt);
     mapping_rows_.update(dt);
     profile_rows_.update(dt);
@@ -429,6 +434,8 @@ void Launcher::draw_screen(Canvas &c, Screen screen)
         return draw_library(c);
     case Screen::settings:
         return draw_settings(c);
+    case Screen::translations:
+        return draw_translations(c);
     case Screen::files:
         return draw_files(c);
     case Screen::language:
@@ -448,7 +455,7 @@ void Launcher::draw_frame(Canvas &c, const char *title, const char *copy)
 
 void Launcher::draw_footer(Canvas &c, const Hint *hints, int count)
 {
-    c.list.rounded_rect({108.0f, 955.0f, 1704.0f, 1.0f}, 0.0f, th().divider.with_alpha(0.9f));
+    c.list.rounded_rect({108.0f, 955.0f, 1704.0f, 1.0f}, 0.0f, th().rule);
     draw_hints(c, hints, count, 108.0f, 987.0f, th().copy, 1704.0f);
 }
 
@@ -462,7 +469,7 @@ void Launcher::draw_update_notice(Canvas &c)
     const Rect panel{1352.0f, 44.0f, 520.0f, 108.0f};
     list.push_opacity(shown);
     list.push_transform(1.0f, 0.0f, 0.0f, (1.0f - shown) * 72.0f * motion(), 0.0f);
-    glass(c, panel, 20.0f, th().panel.with_alpha(0.97f), th().accent.with_alpha(0.55f), 1.4f);
+    glass(c, panel, 16.0f, th().panel, th().panel_edge, 1.0f);
     // A mark at the left: a lime disc with an arrow up.
     const float cx = panel.x + 48.0f;
     const float cy = panel.y + 50.0f;
@@ -488,8 +495,8 @@ void Launcher::draw_launch(Canvas &c)
     const float t = launch_.progress();
     // The menu dims, the game's cover steps forward, then everything goes dark.
     const float black = tween::cubic_in_out((t - 0.45f) / 0.55f);
-    const float veil = std::max(0.90f * tween::cubic_out(t / 0.22f), black);
-    c.list.rounded_rect(kScreen, 0.0f, th().veil.with_alpha(veil));
+    c.list.rounded_rect(kScreen, 0.0f, th().base.with_alpha(0.90f * tween::cubic_out(t / 0.22f)));
+    c.list.rounded_rect(kScreen, 0.0f, th().scrim.with_alpha(black));
 
     const float appear = tween::back_out(t / 0.38f);
     const float leave = 1.0f - tween::cubic_in_out((t - 0.60f) / 0.40f);
@@ -498,7 +505,7 @@ void Launcher::draw_launch(Canvas &c)
     const Rect art{810.0f, 300.0f, 300.0f, 300.0f};
     c.list.shadow({art.x - 10.0f, art.y - 4.0f, art.w + 20.0f, art.h + 20.0f}, 30.0f, 70.0f,
                   th().accent.with_alpha(0.22f));
-    cover(c, launch_cover_, art, 20.0f, 1.0f);
+    cover(c, launch_cover_, art, 20.0f, 1.0f, launch_title_);
     text(c, tr("STARTING"), 960.0f, 668.0f, th().size_small, th().accent, Align::center, 4.0f);
     text_fit(c, launch_title_, 960.0f, 716.0f, th().size_heading, th().title, 1300.0f,
              Align::center);
@@ -539,6 +546,8 @@ void Launcher::draw(gfx::DrawList &list)
     if (modal_shown_ != Modal::none)
     {
         const float opened = tween::clamp01(modal_open_.value);
+        if (modal_shown_ == Modal::mods || modal_shown_ == Modal::game_options)
+            draw_game(c, 1.0f, true);
         list.rounded_rect(kScreen, 0.0f, th().scrim.with_alpha(0.69f * opened));
         if (modal_shown_ == Modal::game)
             draw_game(c, opened);

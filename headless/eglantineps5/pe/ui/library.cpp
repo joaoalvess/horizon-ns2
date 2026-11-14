@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "pe/ui/launcher.hpp"
+#include "pe/ui/shelf_order.hpp"
 
 #include "pe/core/log.hpp"
 
@@ -42,6 +43,7 @@ enum GameRow : int
     row_system,
     row_language,
     row_mods,
+    row_translation,
     row_save,   // in builds that move saves
     row_delete, // a game a download source has: deleted from the console
 };
@@ -52,6 +54,16 @@ constexpr int kDialogRowsShown = 5;
 constexpr Rect kDialogWindow{592.0f, kDialogRowsTop, 736.0f,
                              kDialogRowPitch * (kDialogRowsShown - 1) + kDialogRowHeight};
 constexpr float kDialogHints = 848.0f;
+constexpr Rect kSheetCover{96.0f, 160.0f, 560.0f, 560.0f};
+constexpr Rect kSheetPanel{712.0f, 160.0f, 1112.0f, 760.0f};
+constexpr float kSheetLeft = kSheetPanel.x + 40.0f;
+constexpr float kSheetRight = kSheetPanel.x + kSheetPanel.w - 40.0f;
+constexpr float kSheetRowsTop = 292.0f;
+constexpr float kSheetRowPitch = 72.0f;
+constexpr float kSheetRowHeight = 66.0f;
+constexpr int kSheetRowsShown = 7;
+constexpr Rect kSheetWindow{kSheetLeft - 22.0f, kSheetRowsTop, kSheetRight - kSheetLeft + 36.0f,
+                            kSheetRowPitch * (kSheetRowsShown - 1) + kSheetRowHeight};
 
 // Console mode marks, drawn from lines: a screen on its stand, and a handheld.
 void draw_docked(Canvas &c, float x, float cy, Color ink)
@@ -115,19 +127,50 @@ void Launcher::finish_scan(bool wait)
     }
 }
 
+namespace
+{
+
+// Eden and Ryubing put the games you just played at the front. The rest keep the scan order.
+void order_for_shelf(std::vector<Game> &games, const Home &home,
+                     const std::vector<std::string> &favorites)
+{
+    std::vector<std::string> recents;
+    recents.reserve(home.recents.size());
+    for (const Recent &recent : home.recents)
+        recents.push_back(recent.file);
+    const auto rank = ShelfRanks(favorites, home.last_file, recents);
+    std::stable_sort(games.begin(), games.end(), [&](const Game &a, const Game &b)
+                     { return ShelfRank(rank, a.file) < ShelfRank(rank, b.file); });
+}
+
+bool switch2_title(std::uint64_t title_id) { return (title_id >> 56) == 0x04; }
+
+} // namespace
+
 void Launcher::apply_games(std::vector<Game> games)
 {
+    order_for_shelf(games, home_, favorites_);
+    for (Game &game : games)
+        game.name = shown_name(fonts_.font, game.name, game.file);
+    if (!games_loaded_)
+    {
+        for (const Game &game : games)
+            if (game.file == home_.last_file)
+                platform_ = switch2_title(game.title_id) ? 1 : 0;
+        prefs_ = services_.preferences(platform_);
+    }
+    all_games_ = games;
+    std::erase_if(games, [this](const Game &game) { return (switch2_title(game.title_id) ? 1 : 0) != platform_; });
     // The same games in the same order (the usual case) keep the list where it is; otherwise
     // the selection follows its game.
     bool same = games_loaded_ && games.size() == games_.size();
     for (std::size_t i = 0; same && i < games.size(); ++i)
         same = games[i].file == games_[i].file;
-    const std::string selected = library_.selected < static_cast<int>(games_.size()) ?
-                                     games_[static_cast<std::size_t>(library_.selected)].file :
-                                     std::string{};
+    const std::string selected =
+        library_.selected >= 0 && library_.selected < static_cast<int>(games_.size())
+            ? games_[static_cast<std::size_t>(library_.selected)].file
+            : std::string{};
     games_ = std::move(games);
-    for (Game &game : games_)
-        game.name = shown_name(fonts_.font, game.name, game.file);
     games_loaded_ = true;
     for (Game &game : games_)
         if (game.title_id != 0)
@@ -135,20 +178,37 @@ void Launcher::apply_games(std::vector<Game> games)
     if (!same)
     {
         int index = 0;
+        // The first list lands on the game that was just played. Later reads follow the selection.
+        const std::string want = !selected.empty() ? selected : home_.last_file;
         for (int i = 0; i < static_cast<int>(games_.size()); ++i)
-            if (games_[static_cast<std::size_t>(i)].file == selected)
+            if (games_[static_cast<std::size_t>(i)].file == want)
                 index = i;
         library_.reset(static_cast<int>(games_.size()), index);
         refresh_selected_game();
         mode_.snap(selected_docked_ ? 0.0f : 1.0f);
+        if (games_.empty() || !home_.setup_ready)
+            shelf_settings_ = true;
+        else if (selected.empty())
+            shelf_settings_ = false;
     }
     name_home_games();
+}
+
+void Launcher::choose_platform(int platform)
+{
+    if (platform == platform_ || !games_loaded_)
+        return;
+    platform_ = platform;
+    prefs_ = services_.preferences(platform_);
+    message_.clear();
+    apply_games(all_games_);
+    cue(Cue::page);
 }
 
 void Launcher::name_home_games()
 {
     // Games carry their own names; until one has been read the home screen names it by its file.
-    for (const Game &game : games_)
+    for (const Game &game : all_games_)
     {
         if (game.file == home_.last_file)
             home_.last_title = game.name;
@@ -164,35 +224,42 @@ void Launcher::read_home()
     home_.last_title = shown_name(fonts_.font, home_.last_title, home_.last_file);
     for (Recent &recent : home_.recents)
         recent.title = shown_name(fonts_.font, recent.title, recent.file);
-    if (home_.last_title_id == 0)
+    if (home_.last_title_id != 0)
+    {
+        const std::vector<Mod> mods = services_.mods(home_.last_title_id);
+        home_.last_mods = static_cast<int>(mods.size());
+        // With the game's Mods switch off none of them is on.
+        const bool enabled = mods.empty() || services_.mods_enabled(home_.last_title_id);
+        home_.last_mods_on = !enabled ? 0 : static_cast<int>(
+            std::count_if(mods.begin(), mods.end(), [](const Mod &mod) { return mod.enabled; }));
+    }
+    reseat_shelf();
+}
+
+void Launcher::reseat_shelf()
+{
+    if (!games_loaded_ || games_.empty())
         return;
-    const std::vector<Mod> mods = services_.mods(home_.last_title_id);
-    home_.last_mods = static_cast<int>(mods.size());
-    // With the game's Mods switch off none of them is on.
-    const bool enabled = mods.empty() || services_.mods_enabled(home_.last_title_id);
-    home_.last_mods_on = !enabled ? 0 : static_cast<int>(
-        std::count_if(mods.begin(), mods.end(), [](const Mod &mod) { return mod.enabled; }));
+    const std::string selected =
+        library_.selected >= 0 && library_.selected < static_cast<int>(games_.size())
+            ? games_[static_cast<std::size_t>(library_.selected)].file
+            : std::string{};
+    order_for_shelf(games_, home_, favorites_);
+    if (selected.empty())
+        return;
+    for (int i = 0; i < static_cast<int>(games_.size()); ++i)
+    {
+        if (games_[static_cast<std::size_t>(i)].file != selected)
+            continue;
+        if (i != library_.selected)
+            library_.reset(static_cast<int>(games_.size()), i);
+        return;
+    }
 }
 
 void Launcher::check_games_present()
 {
-    // The home screen: its game, or one of its recent ones, is gone. Its focus stays where it can.
-    if (screen_ == Screen::home && modal_ == Modal::none)
-    {
-        bool gone = home_.last_exists && !services_.game_exists(home_.last_file);
-        for (const Recent &recent : home_.recents)
-            gone = gone || !services_.game_exists(recent.file);
-        if (gone)
-        {
-            read_home();
-            const int recents = static_cast<int>(home_.recents.size());
-            if (home_focus_ >= 5 && home_focus_ < 9 && home_focus_ - 5 >= recents)
-                home_focus_ = recents > 0 ? 4 + recents : 9;
-            if (home_focus_ == 4 && !home_.last_exists)
-                home_focus_ = 0;
-        }
-    }
-    // The Library's list, whatever screen shows: a game's own dialogs stay with their game.
+    // Whatever screen is up: a game's own dialogs stay with their game.
     if (modal_ == Modal::none)
         drop_missing_games();
 }
@@ -202,14 +269,16 @@ bool Launcher::drop_missing_games()
     if (!games_loaded_)
         return false;
     const std::string selected =
-        library_.selected < static_cast<int>(games_.size()) ? games_[static_cast<std::size_t>(library_.selected)].file :
-                                                              std::string{};
+        library_.selected >= 0 && library_.selected < static_cast<int>(games_.size())
+            ? games_[static_cast<std::size_t>(library_.selected)].file
+            : std::string{};
     // A game on download sources has no file yet: it leaves when their lists do not have it.
     const auto gone = std::remove_if(games_.begin(), games_.end(), [this](const Game &game)
                                      { return !game.remote && !services_.game_exists(game.file); });
     if (gone == games_.end())
         return false;
     games_.erase(gone, games_.end());
+    std::erase_if(all_games_, [this](const Game &game) { return !game.remote && !services_.game_exists(game.file); });
     // The selection stays on its game, or on the one that took its place.
     int index = std::min(library_.selected, std::max(0, static_cast<int>(games_.size()) - 1));
     for (int i = 0; i < static_cast<int>(games_.size()); ++i)
@@ -217,6 +286,8 @@ bool Launcher::drop_missing_games()
             index = i;
     library_.reset(static_cast<int>(games_.size()), index);
     refresh_selected_game();
+    if (games_.empty())
+        shelf_settings_ = true;
     return true;
 }
 
@@ -241,6 +312,8 @@ void Launcher::read_mods(Game &game)
     mods_ = services_.mods(game.title_id);
     count_mods(game, mods_);
     mod_list_.clear();
+    if (translation_of(game.title_id) != nullptr)
+        mod_list_.push_back({-1, -1});
     for (int mod = 0; mod < static_cast<int>(mods_.size()); ++mod)
     {
         mod_list_.push_back({mod, -1});
@@ -297,18 +370,54 @@ void Launcher::enter_library()
 
 void Launcher::refresh_selected_game()
 {
-    const std::uint64_t id =
-        games_.empty() ? 0 : games_[static_cast<std::size_t>(library_.selected)].title_id;
+    const bool have = library_.selected >= 0 && library_.selected < static_cast<int>(games_.size());
+    const std::uint64_t id = have ? games_[static_cast<std::size_t>(library_.selected)].title_id : 0;
     selected_docked_ = id == 0 || services_.docked(id);
     // Its Mods switch shows its state at once; it only animates when changed.
-    mods_switch_.snap(!games_.empty() && games_[static_cast<std::size_t>(library_.selected)].mods_enabled ?
-                          1.0f : 0.0f);
+    mods_switch_.snap(have && games_[static_cast<std::size_t>(library_.selected)].mods_enabled ? 1.0f :
+                                                                                                 0.0f);
     detail_.value = 0.0f;
     detail_.velocity = 0.0f;
 }
 
+void Launcher::open_game_panel()
+{
+    const int count = static_cast<int>(games_.size());
+    if (library_.selected < 0 || library_.selected >= count)
+        return;
+    const Game *game = &games_[static_cast<std::size_t>(library_.selected)];
+    if (game->remote)
+    {
+        say(tr("Download the game to change its settings."), true);
+        cue(Cue::error);
+        return;
+    }
+    if (game->title_id == 0)
+    {
+        say(tr("This game's settings cannot be saved (no title ID)."), true);
+        cue(Cue::error);
+        return;
+    }
+    game_settings_ = services_.game_settings(game->title_id);
+    game_docked_ = selected_docked_;
+    import_source_ = services_.save_transfer_available() ? services_.save_import_source(game->title_id) :
+                                                           SaveSource::none;
+    import_armed_ = false;
+    delete_armed_ = false;
+    read_mods(games_[static_cast<std::size_t>(library_.selected)]);
+    open_modal(Modal::game);
+    game_rows_.visible = kSheetRowsShown;
+    game_rows_.pitch = kSheetRowPitch;
+    game_rows_.reset(dialog_rows(Modal::game), 0);
+}
+
 void Launcher::press_library(Key key)
 {
+    if (key == Key::l1 || key == Key::r1)
+    {
+        choose_platform(key == Key::r1 ? 1 : 0);
+        return;
+    }
     const int count = static_cast<int>(games_.size());
     const Game *game = count > 0 ? &games_[static_cast<std::size_t>(library_.selected)] : nullptr;
     switch (key)
@@ -326,9 +435,9 @@ void Launcher::press_library(Key key)
             cue(Cue::focus);
         }
         return;
-    case Key::l1:
-    case Key::r1:
-        if (library_.page(key == Key::r1 ? 1 : -1))
+    case Key::l2:
+    case Key::r2:
+        if (library_.page(key == Key::r2 ? 1 : -1))
         {
             message_.clear();
             refresh_selected_game();
@@ -381,31 +490,7 @@ void Launcher::press_library(Key key)
         return;
     }
     case Key::triangle:
-        if (game == nullptr)
-            return;
-        if (game->remote)
-        {
-            say(tr("Download the game to change its settings."), true);
-            cue(Cue::error);
-            return;
-        }
-        if (game->title_id == 0)
-        {
-            say(tr("This game's settings cannot be saved (no title ID)."), true);
-            cue(Cue::error);
-            return;
-        }
-        game_settings_ = services_.game_settings(game->title_id);
-        game_docked_ = selected_docked_;
-        import_source_ = services_.save_transfer_available() ?
-                             services_.save_import_source(game->title_id) : SaveSource::none;
-        import_armed_ = false;
-        delete_armed_ = false;
-        read_mods(games_[static_cast<std::size_t>(library_.selected)]);
-        open_modal(Modal::game);
-        game_rows_.visible = kDialogRowsShown;
-        game_rows_.pitch = kDialogRowPitch;
-        game_rows_.reset(dialog_rows(Modal::game), 0);
+        open_game_panel();
         return;
     case Key::cross:
         if (game == nullptr || !home_.setup_ready)
@@ -433,7 +518,7 @@ void Launcher::draw_library(Canvas &c)
 
     // ---- the list ----
     glass(c, kListPanel, 26.0f, th().panel.with_alpha(0.80f), th().panel_edge.with_alpha(0.55f));
-    text(c, tr("LIBRARY"), 138.0f, baseline(208.0f, 28.0f, th().size_small), th().size_small,
+    text(c, std::string(tr("LIBRARY")) + (platform_ == 1 ? "  /  SWITCH 2" : "  /  SWITCH"), 138.0f, baseline(208.0f, 28.0f, th().size_small), th().size_small,
          th().accent_pale, Align::left, 3.0f);
     if (count == 0)
     {
@@ -466,9 +551,10 @@ void Launcher::draw_library(Canvas &c)
             const Rect r = row_rect(row);
             list.push_opacity(library_.row_alpha(row, kRowHeight));
             if (game.remote)
-                remote_cover(c, game.cover, {r.x + 12.0f, r.y + 11.0f, 56.0f, 56.0f}, 8.0f);
+                remote_cover(c, game.cover, {r.x + 12.0f, r.y + 11.0f, 56.0f, 56.0f}, 8.0f, 0.0f,
+                             game.name);
             else
-                cover(c, game.cover, {r.x + 12.0f, r.y + 11.0f, 56.0f, 56.0f}, 8.0f);
+                cover(c, game.cover, {r.x + 12.0f, r.y + 11.0f, 56.0f, 56.0f}, 8.0f, 0.0f, game.name);
             if (game.remote)
             {
                 // A game on download sources: where it is or what is happening to it instead of its
@@ -478,7 +564,7 @@ void Launcher::draw_library(Canvas &c)
                 const float taken = text_shrink(c, state, r.x + 730.0f, baseline(r.y, kRowHeight, th().size_small),
                                                 th().size_small, tone, 200.0f, Align::right);
                 text_fit(c, game.name, r.x + 86.0f, baseline(r.y, kRowHeight, th().size_text), th().size_text,
-                         th().row_name.with_alpha(0.78f), 644.0f - taken - 20.0f);
+                         th().title.with_alpha(0.78f), 644.0f - taken - 20.0f);
                 const Download *download = download_of(game.key);
                 if (download != nullptr &&
                     (download->state == DownloadState::downloading || download->state == DownloadState::verifying) &&
@@ -496,7 +582,7 @@ void Launcher::draw_library(Canvas &c)
             else
             {
                 text_fit(c, game.name, r.x + 86.0f, baseline(r.y, kRowHeight, th().size_text),
-                         th().size_text, th().row_name, 560.0f);
+                         th().size_text, th().title, 560.0f);
                 text(c, game.format, r.x + 730.0f, baseline(r.y, kRowHeight, th().size_small),
                      th().size_small, th().meta, Align::right);
             }
@@ -521,10 +607,10 @@ void Launcher::draw_library(Canvas &c)
                baseline(250.0f, 42.0f, th().size_heading), th().size_heading, 42.0f, th().title,
                760.0f, 2);
     if (game != nullptr && game->remote)
-        remote_cover(c, game->cover, {1016.0f, 372.0f, 288.0f, 288.0f}, 14.0f, 0.9f);
+        remote_cover(c, game->cover, {1016.0f, 372.0f, 288.0f, 288.0f}, 14.0f, 0.9f, game->name);
     else
         cover(c, game != nullptr ? game->cover : std::string{}, {1016.0f, 372.0f, 288.0f, 288.0f},
-              14.0f, 0.9f);
+              14.0f, 0.9f, game != nullptr ? std::string_view{game->name} : std::string_view{});
     if (game == nullptr || game->cover.empty())
         text_shrink(c, game == nullptr ? tr("Select a game") : tr("No cover art"), 1160.0f,
                     baseline(676.0f, 30.0f, th().size_small), th().size_small, th().meta, 288.0f,
@@ -592,7 +678,7 @@ void Launcher::draw_library(Canvas &c)
     {
         const Rect track{1322.0f, kModeRow.y + 8.0f, 420.0f, kModeRow.h - 16.0f};
         const float half = track.w * 0.5f;
-        list.rounded_rect(track, 14.0f, th().inset.with_alpha(0.75f));
+        list.rounded_rect(track, 14.0f, th().toggle_track);
         plate_focus(c, nav_plate(), {track.x + half * mode_.value + 3.0f, track.y + 3.0f, half - 6.0f,
                                    track.h - 6.0f},
                     1.0f);
@@ -684,9 +770,12 @@ void Launcher::draw_library(Canvas &c)
 
 int Launcher::game_row(int row) const
 {
-    if (row < row_save)
-        return row;
-    return services_.save_transfer_available() ? row : row + 1;
+    if (!games_.empty() && translation_of(games_[static_cast<std::size_t>(library_.selected)].title_id) == nullptr &&
+        row >= row_translation)
+        ++row;
+    if (!services_.save_transfer_available() && row >= row_save)
+        ++row;
+    return row;
 }
 
 void Launcher::press_game(Key key)
@@ -714,6 +803,10 @@ void Launcher::press_game(Key key)
         if (kind != row_save)
             return;
         break;
+    case Key::triangle:
+        if (kind == row_translation)
+            open_translations(game.title_id);
+        return;
     case Key::left:
     case Key::right:
     case Key::cross:
@@ -726,6 +819,13 @@ void Launcher::press_game(Key key)
         // A kind of setting has its own list.
         if (key == Key::cross)
             open_game_options(kind - row_video);
+        return;
+    }
+    if (kind == row_translation)
+    {
+        if (key == Key::cross)
+            if (const auto *entry = translation_of(game.title_id))
+                change_translation(*entry);
         return;
     }
     if (kind == row_mods)
@@ -820,19 +920,40 @@ void Launcher::press_game(Key key)
     cue(saved ? Cue::toggle : Cue::error);
 }
 
-void Launcher::draw_game(Canvas &c, float open)
+void Launcher::draw_game(Canvas &c, float open, bool behind)
 {
     gfx::DrawList &list = c.list;
+    list.rounded_rect({0.0f, 0.0f, 1920.0f, 1080.0f}, 0.0f, th().base.with_alpha(open));
     list.push_opacity(open);
     list.push_transform(1.0f - 0.03f * (1.0f - open) * motion(), 960.0f, 540.0f, 0.0f,
                         (1.0f - open) * 26.0f * motion());
-    glass(c, kDialog, 26.0f, th().panel.with_alpha(0.97f), th().panel_edge.with_alpha(0.66f),
-          1.6f);
-    text_shrink(c, tr("Game settings"), 592.0f, baseline(218.0f, 62.0f, th().size_display),
-                th().size_display, th().title, 736.0f);
-    const Game *game = games_.empty() ? nullptr : &games_[static_cast<std::size_t>(library_.selected)];
-    text_fit(c, game != nullptr ? game->name : std::string{}, 592.0f,
-             baseline(291.0f, 32.0f, th().size_small), th().size_small, th().note, 736.0f);
+    const bool have = library_.selected >= 0 && library_.selected < static_cast<int>(games_.size());
+    const Game *game = have ? &games_[static_cast<std::size_t>(library_.selected)] : nullptr;
+    draw_profile_bar(c, false);
+    if (game != nullptr)
+    {
+        cover(c, game->cover, kSheetCover, 26.0f, 0.6f, game->name);
+        std::string lines[4] = {platform_ == 1 ? "Switch 2" : "Switch", game->format + "  /  " + game->size,
+                                game->addons, game->language};
+        float y = kSheetCover.y + kSheetCover.h + 52.0f;
+        for (int i = 0; i < 4; ++i)
+        {
+            if (lines[i].empty())
+                continue;
+            text_shrink(c, lines[i], kSheetCover.x, y, 21.0f, i == 0 ? th().title : th().meta, kSheetCover.w);
+            y += 34.0f;
+        }
+    }
+    glass(c, kSheetPanel, 26.0f, th().panel, th().panel_edge, 1.0f);
+    text_shrink(c, tr("Game settings"), kSheetLeft, kSheetPanel.y + 64.0f, 34.0f, th().title,
+                kSheetRight - kSheetLeft);
+    {
+        std::string heading = game != nullptr ? game->name : std::string{};
+        if (game != nullptr && !services_.game_profile(game->title_id).empty())
+            heading += std::string{"  /  "} + tr("Recommended");
+        text_fit(c, heading, kSheetLeft, kSheetPanel.y + 104.0f, th().size_small, th().meta,
+                 kSheetRight - kSheetLeft);
+    }
 
     // A kind of setting: what the game does differently from Settings, if anything.
     const auto changed = [this](int category)
@@ -856,35 +977,44 @@ void Launcher::draw_game(Canvas &c, float open)
                  {std::to_string(std::count_if(mods_.begin(), mods_.end(),
                                                [](const Mod &mod) { return mod.enabled; })),
                   std::to_string(mods_.size())}),
+        game != nullptr && translation_of(game->title_id) != nullptr ?
+            translation_of(game->title_id)->size + " · " + translation_action(*translation_of(game->title_id)) : "",
         import_source_ == SaveSource::ryujinx ? tr("Ryujinx save found") :
         import_source_ == SaveSource::folder ? tr("Save folder found") : tr("Nothing to import"),
         game != nullptr ? game->size : std::string{},
     };
     static constexpr const char *kLabels[] = {TR("Console mode"), TR("Video"),    TR("Performance"),
                                               TR("Audio"),        TR("Controls"), TR("System"),
-                                              TR("Language"),     TR("Mods"),     TR("Save data"),
+                                              TR("Language"),     TR("Mods"),     TR("PT-BR translation available (CNX)"), TR("Save data"),
                                               TR("Delete from console")};
     // Five rows show; the list scrolls to the others.
-    list.push_clip({kDialogWindow.x - 24.0f, kDialogWindow.y - 6.0f, kDialogWindow.w + 48.0f,
-                    kDialogWindow.h + 12.0f});
+    list.push_clip({kSheetWindow.x - 8.0f, kSheetWindow.y - 8.0f, kSheetWindow.w + 16.0f,
+                    kSheetWindow.h + 16.0f});
     const auto row_top = [&](int row)
-    { return kDialogRowsTop + static_cast<float>(row) * kDialogRowPitch - game_rows_.scroll(); };
-    for (int row = game_rows_.first_row(); row <= game_rows_.last_row(); ++row)
-    {
-        list.push_opacity(game_rows_.row_alpha(row, kDialogRowHeight));
-        plate_rest(c, row_plate(), {592.0f, row_top(row), 736.0f, kDialogRowHeight});
-        list.pop_opacity();
-    }
-    plate_focus(c, row_plate(),
-                {592.0f, kDialogRowsTop + game_rows_.cursor() - game_rows_.scroll(), 736.0f,
-                 kDialogRowHeight},
-                1.0f);
+    { return kSheetRowsTop + static_cast<float>(row) * kSheetRowPitch - game_rows_.scroll(); };
+    if (!behind)
+        plate_focus(c, row_plate(),
+                    {kSheetWindow.x, kSheetRowsTop + game_rows_.cursor() - game_rows_.scroll(), kSheetWindow.w,
+                     kSheetRowHeight},
+                    1.0f);
     for (int row = game_rows_.first_row(); row <= game_rows_.last_row(); ++row)
     {
         const float top = row_top(row);
-        const float focus = row == option_ ? 1.0f : 0.0f;
+        const float focus = !behind && row == option_ ? 1.0f : 0.0f;
         const int kind = game_row(row);
-        list.push_opacity(game_rows_.row_alpha(row, kDialogRowHeight));
+        list.push_opacity(game_rows_.row_alpha(row, kSheetRowHeight));
+        if (kind == row_translation && game != nullptr && translation_of(game->title_id) != nullptr)
+        {
+            const auto &entry = *translation_of(game->title_id);
+            text_fit(c, entry.installed ? tr("PT-BR translation installed (CNX)") :
+                                         tr("PT-BR translation available (CNX)"),
+                     kSheetLeft, baseline(top, kSheetRowHeight, th().size_text), th().size_text,
+                     th().title, kSheetRight - kSheetLeft - 360.0f);
+            text_shrink(c, values[kind], kSheetRight, baseline(top, kSheetRowHeight, th().size_small),
+                        th().size_small, th().meta, 340.0f, Align::right);
+            list.pop_opacity();
+            continue;
+        }
         // The value first: the row's name takes what it leaves. The kinds of setting, Mods and
         // Save data say what is there; the console mode is a choice; deleting says the game's size.
         const bool there = kind == row_mods ? !mods_.empty() && (game == nullptr || game->mods_enabled) :
@@ -893,47 +1023,67 @@ void Launcher::draw_game(Canvas &c, float open)
                                               game_overrides(kind - row_video) > 0;
         const float taken =
             kind != row_mode ?
-                text_shrink(c, values[kind], 1292.0f, baseline(top, kDialogRowHeight, th().size_small),
-                            th().size_small, there ? th().accent_pale : th().meta, 320.0f,
+                text_shrink(c, values[kind], kSheetRight, baseline(top, kSheetRowHeight, th().size_small),
+                            th().size_small, there ? th().accent_pale : th().meta, 420.0f,
                             Align::right) :
-                chooser(c, values[kind], 1296.0f, baseline(top, kDialogRowHeight, th().size_text),
+                chooser(c, values[kind], kSheetRight + 4.0f, baseline(top, kSheetRowHeight, th().size_text),
                         focus, th().accent_pale);
-        text_shrink(c, tr(kLabels[kind]), 628.0f, baseline(top, kDialogRowHeight, th().size_text),
-                    th().size_text, kind == row_delete ? th().warning : th().value, 664.0f - taken - 28.0f);
+        text_shrink(c, tr(kLabels[kind]), kSheetLeft, baseline(top, kSheetRowHeight, th().size_text),
+                    th().size_text, kind == row_delete ? th().warning : th().title,
+                    kSheetRight - kSheetLeft - taken - 28.0f);
         list.pop_opacity();
     }
     list.pop_clip();
-    scrollbar(c, game_rows_, 1340.0f, kDialogWindow.y, kDialogWindow.h);
+    scrollbar(c, game_rows_, kSheetPanel.x + kSheetPanel.w - 16.0f, kSheetWindow.y, kSheetWindow.h);
+    if (behind)
+    {
+        list.pop_transform();
+        list.pop_opacity();
+        return;
+    }
+    const float hints_x = draw_brand_bar(c);
+    const float hints_w = 1800.0f - hints_x;
 
     if (!message_.empty())
     {
         // Up to two lines: what Save data answers is longer than a "Saved".
-        notice_block(c, message_, 592.0f, kDialogHints - 6.0f, th().size_small, 26.0f,
-                     message_warning_ ? th().warning : th().accent_pale, 736.0f, 2,
+        notice_block(c, message_, kSheetLeft, kSheetPanel.y + kSheetPanel.h - 50.0f, th().size_small, 26.0f,
+                     message_warning_ ? th().warning : th().accent_pale, kSheetRight - kSheetLeft, 2,
                      message_warning_);
+    }
+    else if (game_row(option_) == row_translation && game != nullptr && translation_of(game->title_id) != nullptr)
+    {
+        const auto &entry = *translation_of(game->title_id);
+        notice(c, tr("Check the game version, updates/ and any extra steps."), kSheetLeft,
+               kSheetPanel.y + kSheetPanel.h - 36.0f, 18.0f, th().warning, kSheetRight - kSheetLeft, true);
+        const Hint hints[] = {{Pad::cross, translation_action(entry)}, {Pad::triangle, tr("Translation details")},
+                              {Pad::circle, tr("Back")}};
+        draw_hints(c, !translations_.busy && !(entry.installed && !entry.managed) ? hints : hints + 1,
+                   !translations_.busy && !(entry.installed && !entry.managed) ? 3 : 2,
+                   hints_x, 982.0f, th().muted, hints_w);
     }
     else if (game_row(option_) == row_delete)
     {
         static constexpr Hint kDelete[] = {{Pad::cross, TR("Delete")}, {Pad::circle, TR("Back")}};
-        draw_hints(c, kDelete, 2, 592.0f, kDialogHints, th().copy, 736.0f);
+        draw_hints(c, kDelete, 2, hints_x, 982.0f, th().muted, hints_w);
     }
     else if (game_row(option_) == row_save)
     {
         static constexpr Hint kTransfer[] = {{Pad::cross, TR("Import")},
                                              {Pad::square, TR("Export a copy")},
                                              {Pad::circle, TR("Back")}};
-        draw_hints(c, kTransfer, 3, 592.0f, kDialogHints, th().copy, 736.0f);
+        draw_hints(c, kTransfer, 3, hints_x, 982.0f, th().muted, hints_w);
     }
     else if (option_ != row_mode)
     {
         static constexpr Hint kOpen[] = {{Pad::cross, TR("Open")}, {Pad::circle, TR("Back")}};
-        draw_hints(c, kOpen, 2, 592.0f, kDialogHints, th().copy, 736.0f);
+        draw_hints(c, kOpen, 2, hints_x, 982.0f, th().muted, hints_w);
     }
     else
     {
         static constexpr Hint kHints[] = {
             {Pad::updown, TR("Select")}, {Pad::leftright, TR("Change")}, {Pad::circle, TR("Back")}};
-        draw_hints(c, kHints, 3, 592.0f, kDialogHints, th().copy, 736.0f);
+        draw_hints(c, kHints, 3, hints_x, 982.0f, th().muted, hints_w);
     }
     list.pop_transform();
     list.pop_opacity();
@@ -973,13 +1123,24 @@ void Launcher::press_mods(Key key)
         cue(made ? Cue::saved : Cue::error);
         return;
     }
+    case Key::triangle:
+        if (translation_of(game.title_id) != nullptr)
+            open_translations(game.title_id);
+        return;
     case Key::cross:
     case Key::left:
     case Key::right:
     {
-        if (mods_.empty())
+        if (mod_list_.empty())
             return;
         const ModRow at = mod_list_[static_cast<std::size_t>(mod_rows_.selected)];
+        if (at.mod < 0)
+        {
+            if (key == Key::cross)
+                if (const auto *entry = translation_of(game.title_id))
+                    change_translation(*entry);
+            return;
+        }
         Mod &mod = mods_[static_cast<std::size_t>(at.mod)];
         // With the game's Mods switch off (the Library's), choosing a mod turns the switch on and
         // that mod with it: nobody switches a mod in a list that is switched off.
@@ -1033,9 +1194,9 @@ void Launcher::draw_mods(Canvas &c, float open)
                 th().title, 736.0f);
     const Game *game = games_.empty() ? nullptr : &games_[static_cast<std::size_t>(library_.selected)];
     text_fit(c, game != nullptr ? game->name : std::string{}, 592.0f,
-             baseline(291.0f, 32.0f, th().size_small), th().size_small, th().note, 736.0f);
+             baseline(291.0f, 32.0f, th().size_small), th().size_small, th().meta, 736.0f);
 
-    if (mods_.empty())
+    if (mod_list_.empty())
     {
         text_block(c,
                    fill(tr("No mods for this game yet. Copy each mod's folder to {0}, next to roms/."),
@@ -1065,9 +1226,24 @@ void Launcher::draw_mods(Canvas &c, float open)
         for (int row = mod_rows_.first_row(); row <= mod_rows_.last_row(); ++row)
         {
             const ModRow at = mod_list_[static_cast<std::size_t>(row)];
-            const Mod &mod = mods_[static_cast<std::size_t>(at.mod)];
             const float top = row_top(row);
             list.push_opacity(mod_rows_.row_alpha(row, kDialogRowHeight));
+            if (at.mod < 0)
+            {
+                const auto *entry = game == nullptr ? nullptr : translation_of(game->title_id);
+                if (entry != nullptr)
+                {
+                    text_fit(c, entry->installed ? tr("PT-BR translation installed (CNX)") :
+                                                   tr("PT-BR translation available (CNX)"),
+                             628.0f, baseline(top + 14.0f, 38.0f, th().size_text), th().size_text,
+                             th().accent_pale, 664.0f);
+                    text_shrink(c, entry->size + " · " + translation_action(*entry), 628.0f,
+                                baseline(top + 52.0f, 28.0f, th().size_small), th().size_small, th().meta, 664.0f);
+                }
+                list.pop_opacity();
+                continue;
+            }
+            const Mod &mod = mods_[static_cast<std::size_t>(at.mod)];
             if (at.cheat >= 0)
             {
                 // One of the mod's cheats, set in under it, with its own switch: faint while its
@@ -1110,6 +1286,18 @@ void Launcher::draw_mods(Canvas &c, float open)
         notice_block(c, message_, 592.0f, kDialogHints - 6.0f, th().size_small, 26.0f,
                      message_warning_ ? th().warning : th().accent_pale, 736.0f, 2,
                      message_warning_);
+    }
+    else if (game != nullptr && translation_of(game->title_id) != nullptr &&
+             !mod_list_.empty() && mod_list_[static_cast<std::size_t>(mod_rows_.selected)].mod < 0)
+    {
+        const auto &entry = *translation_of(game->title_id);
+        notice(c, tr("Check the game version, updates/ and any extra steps."), 592.0f, 832.0f,
+               18.0f, th().warning, 736.0f, true);
+        const Hint hints[] = {{Pad::cross, translation_action(entry)}, {Pad::triangle, tr("Translation details")},
+                              {Pad::circle, tr("Back")}};
+        draw_hints(c, !translations_.busy && !(entry.installed && !entry.managed) ? hints : hints + 1,
+                   !translations_.busy && !(entry.installed && !entry.managed) ? 3 : 2,
+                   592.0f, 872.0f, th().copy, 736.0f);
     }
     else if (mods_.empty())
     {

@@ -95,11 +95,12 @@ void cloud(gfx::DrawList &list, float cx, float cy, float width, Color color)
 
 } // namespace
 
-void Launcher::remote_cover(Canvas &c, const std::string &path, const Rect &r, float radius, float shadow)
+void Launcher::remote_cover(Canvas &c, const std::string &path, const Rect &r, float radius, float shadow,
+                           std::string_view mark)
 {
-    cover(c, path, r, radius, shadow);
+    cover(c, path, r, radius, shadow, mark);
     // Not on the console: the picture steps back...
-    c.list.rounded_rect(r, radius, th().veil.with_alpha(0.45f));
+    c.list.rounded_rect(r, radius, th().base.with_alpha(0.45f));
     // ...and a cloud says where it is.
     const float size = std::max(24.0f, r.w * 0.32f);
     const float inset = std::max(4.0f, r.w * 0.05f);
@@ -313,7 +314,7 @@ void Launcher::draw_choice(Canvas &c, float open)
     text_shrink(c, tr("Download from"), 592.0f, baseline(218.0f, 62.0f, th().size_display), th().size_display,
                 th().title, 736.0f);
     text_fit(c, choice_game_.name, 592.0f, baseline(291.0f, 32.0f, th().size_small), th().size_small,
-             th().note, 736.0f);
+             th().meta, 736.0f);
     text_shrink(c, tr("Several sources have this game. Which one should it come from?"), 592.0f,
                 baseline(328.0f, 34.0f, th().size_small), th().size_small, th().copy, 736.0f);
 
@@ -556,7 +557,7 @@ void Launcher::press_sources(Key key)
     else if (download.state == DownloadState::failed)
     {
         // Again, from the source it came from.
-        for (const Game &game : games_)
+        for (const Game &game : all_games_)
             if (game.key == download.key)
             {
                 const auto at = std::find(game.sources.begin(), game.sources.end(), download.source);
@@ -580,7 +581,7 @@ void Launcher::draw_sources(Canvas &c, float open)
     text_shrink(c, tr("Downloads"), 592.0f, baseline(218.0f, 62.0f, th().size_display), th().size_display, th().title,
                 736.0f);
     text_shrink(c, tr("Games on your network, downloaded when you play them."), 592.0f,
-                baseline(291.0f, 32.0f, th().size_small), th().size_small, th().note, 736.0f);
+                baseline(291.0f, 32.0f, th().size_small), th().size_small, th().meta, 736.0f);
     if (sources_.configured)
         text_shrink(c, fill(tr("Downloads need an FTP server running on the console, on port {0}."),
                             {std::to_string(sources_.ftp_port)}),
@@ -599,7 +600,7 @@ void Launcher::draw_sources(Canvas &c, float open)
         if (!sources_.error.empty())
             notice_block(c, sources_.error, 592.0f, baseline(508.0f, 30.0f, th().size_small), th().size_small, 28.0f,
                          th().warning, 736.0f, 2, true);
-        list.bordered_rect({592.0f, 570.0f, 736.0f, 202.0f}, 14.0f, th().inset.with_alpha(0.75f), 1.0f,
+        list.bordered_rect({592.0f, 570.0f, 736.0f, 202.0f}, 14.0f, th().row, 1.0f,
                            th().row_edge.with_alpha(0.6f));
         static constexpr const char *kExample[] = {"{ \"sources\": [",
                                                    "    { \"type\": \"romm\", \"name\": \"Home\",",

@@ -5,6 +5,7 @@
 
 #include "pe/ui/services.hpp"
 #include "remote/remote.h"
+#include "cnx.h"
 
 #include <atomic>
 #include <chrono>
@@ -28,6 +29,9 @@ public:
     std::string version() override;
 
     std::vector<pe::ui::Game> games() override;
+    std::vector<std::string> favorites() override;
+    bool set_favorite(const std::string& file, bool on) override;
+    std::string game_profile(std::uint64_t title_id) override;
     std::string game_path(const std::string& file) override;
     bool game_exists(const std::string& file) override;
     std::string launch_blocked(const std::string& file) override;
@@ -42,7 +46,7 @@ public:
     pe::ui::GameSettings game_settings(std::uint64_t title_id) override;
     bool set_game_settings(std::uint64_t title_id, const pe::ui::GameSettings& settings) override;
 
-    pe::ui::Preferences preferences() override;
+    pe::ui::Preferences preferences(int platform = 0) override;
     bool set_preferences(const pe::ui::Preferences& preferences) override;
     const std::vector<std::string>& resolution_labels() override;
     const std::vector<std::string>& resolution_keys() override;
@@ -79,6 +83,10 @@ public:
     bool set_mods_enabled(std::uint64_t title_id, bool enabled) override;
     std::string mods_folder(std::uint64_t title_id) override;
     bool make_mods_folder(std::uint64_t title_id) override;
+
+    pe::ui::Translations translations() override;
+    bool install_translation(std::uint64_t title_id) override;
+    bool remove_translation(std::uint64_t title_id) override;
 
     pe::ui::Sources sources() override;
     void refresh_sources() override;
@@ -120,6 +128,15 @@ public:
                       std::atomic<unsigned>&) override;
     bool can_launch_game() override;
 private:
+    bool StartTranslation(std::uint64_t title_id, bool remove);
+    void StopTranslations();
+    std::thread cnx_thread_;
+    std::mutex cnx_lock_;
+    std::atomic<bool> cnx_stop_{false};
+    pe::ui::Translations cnx_;
+    std::vector<Eden::CNX::Entry> cnx_entries_;
+    std::int64_t cnx_checked_ = 0;
+    std::uint64_t cnx_enable_title_ = 0;
     Eden::Multiplayer::RoomClient& rooms_;
     int user_ = -1; // the PS5 user in front when the menu opened (negative: unknown)
     std::string launch_error_;

@@ -1,4 +1,4 @@
-// EglantinePS5 - Launcher home: continue playing, recent games, navigation.
+// EglantinePS5 - Launcher home: the shelf of games.
 // Copyright (C) 2026 BlackBearReloaded
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -17,143 +17,429 @@ using audio::Cue;
 namespace
 {
 
-const Color kWhite{1.0f, 1.0f, 1.0f, 1.0f};
+// Five covers across the 1920-wide screen, with the header above and the hints below.
+constexpr int kCols = 5;
+constexpr int kPage = kCols * 2;
+constexpr float kGridLeft = 120.0f;
+constexpr float kGridTop = 188.0f;
+constexpr float kCell = 304.0f;
+constexpr float kGap = 28.0f;
+constexpr float kPitch = kCell + kGap;
+constexpr float kGridBottom = 928.0f;
 
-constexpr Rect kHero{120.0f, 200.0f, 1680.0f, 480.0f};
-// Header tabs, hero buttons and "view all" are as wide as their words need in the language shown;
-// these are their sizes in English and the edges they keep.
-constexpr float kNavRight = 1480.0f;
-constexpr float kNavWidth = 136.0f;
-constexpr float kButtonWidth = 272.0f;
-constexpr float kButtonWidest = 390.0f;
-constexpr float kViewAllWidth = 304.0f;
+constexpr int kRowGames = 4;
+constexpr float kRowLeft = 120.0f;
+constexpr float kRowTop = 300.0f;
+constexpr float kTile = 312.0f;
+constexpr float kTileGap = 30.0f;
+constexpr float kTileRadius = 22.0f;
+constexpr int kDockItems = 6;
+constexpr float kDockTop = 724.0f;
+constexpr float kDockRadius = 52.0f;
+constexpr float kDockItem = 124.0f;
+constexpr float kDockGap = 44.0f;
+constexpr float kTopY = 44.0f;
+constexpr float kTopH = 72.0f;
 
-Rect tile_rect(int index)
+constexpr const char *kDockNames[kDockItems] = {TR("Library"),     TR("Translations"), TR("Downloads"),
+                                                TR("Multiplayer"), TR("Save data"),    TR("Settings")};
+
+std::string initial(const std::string &name)
 {
-    return {120.0f + 424.0f * static_cast<float>(index), 760.0f, 400.0f, 144.0f};
+    if (name.empty())
+        return {};
+    std::size_t n = 1;
+    while (n < name.size() && (static_cast<unsigned char>(name[n]) & 0xC0u) == 0x80u)
+        ++n;
+    std::string first = name.substr(0, n);
+    if (n == 1 && first[0] >= 'a' && first[0] <= 'z')
+        first[0] = static_cast<char>(first[0] - 'a' + 'A');
+    return first;
 }
 
-// The four controllers, at the right of the hero beside its buttons.
-constexpr float kPadsRight = 1752.0f;
-Rect pad_rect(int player)
+void dock_icon(gfx::DrawList &list, int icon, float cx, float cy, float size, Color ink)
 {
-    return {kPadsRight - 354.0f + 94.0f * static_cast<float>(player), 506.0f, 72.0f, 50.0f};
+    const float u = size / 24.0f;
+    const float ox = cx - 12.0f * u;
+    const float oy = cy - 12.0f * u;
+    const float w = 1.8f * u;
+    const auto seg = [&](float x1, float y1, float x2, float y2)
+    { list.line(ox + x1 * u, oy + y1 * u, ox + x2 * u, oy + y2 * u, w, ink); };
+    const auto box = [&](float x, float y, float bw, float bh, float r)
+    { list.bordered_rect({ox + x * u, oy + y * u, bw * u, bh * u}, r * u, ink.with_alpha(0.0f), w, ink); };
+    const auto round = [&](float x, float y, float r) { list.ring(ox + x * u, oy + y * u, r * u, w, ink); };
+    switch (icon)
+    {
+    case 0:
+        box(3.0f, 3.0f, 7.0f, 7.0f, 2.0f);
+        box(14.0f, 3.0f, 7.0f, 7.0f, 2.0f);
+        box(3.0f, 14.0f, 7.0f, 7.0f, 2.0f);
+        box(14.0f, 14.0f, 7.0f, 7.0f, 2.0f);
+        return;
+    case 1:
+        seg(4.0f, 5.0f, 13.0f, 5.0f);
+        seg(8.5f, 3.0f, 8.5f, 5.0f);
+        seg(6.0f, 5.0f, 12.0f, 13.0f);
+        seg(11.0f, 5.0f, 4.0f, 14.0f);
+        seg(13.0f, 21.0f, 17.0f, 12.0f);
+        seg(17.0f, 12.0f, 21.0f, 21.0f);
+        seg(14.5f, 18.0f, 19.5f, 18.0f);
+        return;
+    case 2:
+        seg(12.0f, 3.0f, 12.0f, 15.0f);
+        seg(7.0f, 10.0f, 12.0f, 15.0f);
+        seg(17.0f, 10.0f, 12.0f, 15.0f);
+        seg(4.0f, 17.0f, 4.0f, 21.0f);
+        seg(4.0f, 21.0f, 20.0f, 21.0f);
+        seg(20.0f, 21.0f, 20.0f, 17.0f);
+        return;
+    case 3:
+        round(8.0f, 9.0f, 3.0f);
+        round(16.0f, 9.0f, 3.0f);
+        seg(3.0f, 20.0f, 5.0f, 16.5f);
+        seg(5.0f, 16.5f, 8.0f, 15.0f);
+        seg(8.0f, 15.0f, 11.0f, 16.5f);
+        seg(11.0f, 16.5f, 13.0f, 20.0f);
+        seg(13.0f, 16.5f, 16.0f, 15.0f);
+        seg(16.0f, 15.0f, 19.0f, 16.5f);
+        seg(19.0f, 16.5f, 21.0f, 20.0f);
+        return;
+    case 4:
+        box(4.0f, 4.0f, 16.0f, 16.0f, 2.0f);
+        box(8.0f, 4.0f, 8.0f, 5.0f, 0.5f);
+        box(7.0f, 13.0f, 10.0f, 7.0f, 1.0f);
+        return;
+    default:
+        round(12.0f, 12.0f, 3.2f);
+        round(12.0f, 12.0f, 7.0f);
+        for (int k = 0; k < 8; ++k)
+        {
+            const float a = static_cast<float>(k) * 0.785398f;
+            list.line(cx + 7.0f * u * std::cos(a), cy + 7.0f * u * std::sin(a), cx + 9.8f * u * std::cos(a),
+                      cy + 9.8f * u * std::sin(a), 3.0f * u, ink);
+        }
+        return;
+    }
+}
+
+void focus_ring(gfx::DrawList &list, const Rect &r, float radius)
+{
+    const Color ring = look().high_contrast ? th().text : th().accent;
+    list.bordered_rect({r.x - 7.5f, r.y - 7.5f, r.w + 15.0f, r.h + 15.0f}, radius + 7.5f,
+                       th().base.with_alpha(0.0f), 5.0f, ring);
 }
 
 } // namespace
 
-void Launcher::open_library_at_last()
+bool Launcher::select_shelf(int index)
 {
-    open(Screen::library, true);
-    enter_library();
-    for (int i = 0; i < static_cast<int>(games_.size()); ++i)
+    const int count = static_cast<int>(games_.size());
+    if (count <= 0)
+        return false;
+    index = std::clamp(index, 0, count - 1);
+    if (!shelf_settings_ && !shelf_all_ && index == library_.selected)
+        return false;
+    shelf_settings_ = false;
+    shelf_all_ = false;
+    library_.selected = index;
+    library_.count = count;
+    refresh_selected_game();
+    mode_.snap(selected_docked_ ? 0.0f : 1.0f);
+    detail_.value = 0.0f;
+    detail_.velocity = 0.0f;
+    cue(Cue::focus);
+    return true;
+}
+
+void Launcher::update_shelf(float dt)
+{
+    const int count = static_cast<int>(games_.size());
+    if (count == 0)
     {
-        if (games_[static_cast<std::size_t>(i)].file == home_.last_file)
+        shelf_settings_ = true;
+        shelf_grid_ = false;
+    }
+    else if (library_.selected < 0 || library_.selected >= count)
+        library_.selected = std::clamp(library_.selected, 0, count - 1);
+    if (!shelf_grid_ && !shelf_settings_ && library_.selected >= std::min(count, kRowGames))
+        shelf_all_ = true;
+    const int rows = count == 0 ? 0 : (count + kCols - 1) / kCols;
+    const float view = kGridBottom - kGridTop;
+    const float content = static_cast<float>(rows) * kPitch - kGap;
+    const float max_scroll = std::max(0.0f, content - view);
+    const int row = !shelf_grid_ || count == 0 ? 0 : library_.selected / kCols;
+    const float focus_top = static_cast<float>(row) * kPitch;
+    float target = shelf_scroll_.target;
+    if (focus_top < target)
+        target = focus_top;
+    if (focus_top + kCell > target + view)
+        target = focus_top + kCell - view;
+    shelf_scroll_.target = std::clamp(target, 0.0f, max_scroll);
+    shelf_scroll_.update(dt, th().scroll_spring);
+}
+
+void Launcher::open_dock_item()
+{
+    press_ = 1.0f;
+    switch (dock_)
+    {
+    case 0:
+        if (games_.empty())
         {
-            library_.reset(library_.count, i);
-            refresh_selected_game();
-            break;
+            cue(Cue::error);
+            return;
         }
+        shelf_grid_ = true;
+        shelf_settings_ = false;
+        shelf_all_ = false;
+        cue(Cue::open);
+        return;
+    case 1:
+        open_translations();
+        return;
+    case 2:
+        open_sources();
+        return;
+    case 3:
+        open_multiplayer();
+        return;
+    case 4:
+        open_sync_setup();
+        return;
+    default:
+        open(Screen::settings, true);
+        prefs_ = services_.preferences(platform_);
+        section_.snap(1.0f);
+        return;
     }
 }
 
 void Launcher::press_home(Key key)
 {
-    const bool ready = home_.setup_ready;
-    const bool continue_ready = ready && home_.last_exists;
-    // The status panel takes the place of the recent games.
-    const bool recents_shown = home_.status.empty();
-    const int recent_count = recents_shown ? static_cast<int>(home_.recents.size()) : 0;
-    const int before = home_focus_;
-    int &focus = home_focus_;
+    if (key == Key::l1 || key == Key::r1)
+    {
+        choose_platform(key == Key::r1 ? 1 : 0);
+        return;
+    }
+    if (shelf_grid_)
+    {
+        press_shelf_grid(key);
+        return;
+    }
+    const int count = static_cast<int>(games_.size());
+    if (count == 0)
+        shelf_settings_ = true;
+    else if (library_.selected < 0 || library_.selected >= count)
+        library_.selected = std::clamp(library_.selected, 0, count - 1);
+    const int shown = std::min(count, kRowGames);
+    if (!shelf_settings_ && library_.selected >= shown)
+        shelf_all_ = true;
 
+    if (shelf_settings_)
+    {
+        switch (key)
+        {
+        case Key::left:
+        case Key::right:
+        {
+            const int next = dock_ + (key == Key::right ? 1 : -1);
+            if (next < 0 || next >= kDockItems)
+                return;
+            dock_ = next;
+            cue(Cue::focus);
+            return;
+        }
+        case Key::up:
+            if (count == 0)
+            {
+                cue(Cue::error);
+                return;
+            }
+            shelf_settings_ = false;
+            cue(Cue::focus);
+            return;
+        case Key::cross:
+            open_dock_item();
+            return;
+        default:
+            return;
+        }
+    }
+
+    const Game *game = shelf_all_ ? nullptr : &games_[static_cast<std::size_t>(library_.selected)];
     switch (key)
     {
-    case Key::up:
-        if (focus == 0 || focus == 4)
-            focus = ready ? 1 : 2;
-        else if (focus >= 5)
-            focus = 0;
-        break;
     case Key::down:
-        if (focus >= 1 && focus <= 3)
-        {
-            if (ready)
-                focus = 0;
-        }
-        else if ((focus == 0 || focus == 4) && recents_shown)
-        {
-            focus = recent_count > 0 ? 5 : 9;
-        }
-        break;
+        shelf_settings_ = true;
+        cue(Cue::focus);
+        return;
     case Key::left:
+        if (shelf_all_)
+        {
+            if (!select_shelf(shown - 1))
+                cue(Cue::focus);
+        }
+        else if (library_.selected > 0)
+            select_shelf(library_.selected - 1);
+        return;
     case Key::right:
-    {
-        const int delta = key == Key::right ? 1 : -1;
-        if (focus >= 1 && focus <= 3)
-        {
-            focus = 1 + (focus - 1 + delta + 3) % 3;
-            if (focus == 1 && !ready)
-                focus = delta > 0 ? 2 : 3;
-        }
-        else if (focus == 0 || focus == 4)
-        {
-            if (continue_ready)
-                focus = focus == 0 ? 4 : 0;
-        }
+        if (shelf_all_)
+            return;
+        if (library_.selected + 1 < shown)
+            select_shelf(library_.selected + 1);
         else
         {
-            const int length = recent_count + 1;
-            int position = focus == 9 ? recent_count : focus - 5;
-            position = (position + delta + length) % length;
-            focus = position == recent_count ? 9 : position + 5;
+            shelf_all_ = true;
+            cue(Cue::focus);
         }
-        break;
-    }
+        return;
+    case Key::square:
+        if (game == nullptr || !home_.setup_ready)
+        {
+            cue(Cue::error);
+            return;
+        }
+        {
+            const bool on = std::find(favorites_.begin(), favorites_.end(), game->file) == favorites_.end();
+            if (!services_.set_favorite(game->file, on))
+            {
+                const bool full = on && favorites_.size() >= 24;
+                say(full ? tr("The shelf already has 24 pinned games.") :
+                           on ? tr("This game cannot be pinned.") : tr("Could not update the shelf."),
+                    true);
+                cue(Cue::error);
+                return;
+            }
+            favorites_ = services_.favorites();
+            reseat_shelf();
+            cue(on ? Cue::saved : Cue::toggle);
+        }
+        return;
     case Key::triangle:
-        if ((focus == 0 || focus == 4) && continue_ready)
-            open_library_at_last();
+        if (game == nullptr)
+        {
+            cue(Cue::error);
+            return;
+        }
+        open_game_panel();
         return;
     case Key::cross:
         press_ = 1.0f;
-        if (focus == 0 && continue_ready)
+        if (game == nullptr)
         {
-            launch(home_.last_file, home_.last_title, home_.last_cover);
+            shelf_grid_ = true;
+            cue(Cue::open);
+            return;
         }
-        else if ((focus == 0 || focus == 1 || focus == 9) && ready)
-        {
-            open(Screen::library, true);
-            enter_library();
-        }
-        else if (focus == 2)
-        {
-            open(Screen::settings, true);
-            prefs_ = services_.preferences();
-            section_.snap(1.0f);
-        }
-        else if (focus == 3)
-        {
-            open(Screen::about, true);
-        }
-        else if (focus == 4 && continue_ready)
-        {
-            open_library_at_last();
-        }
-        else if (focus >= 5 && focus < 5 + recent_count && ready)
-        {
-            const Recent &recent = home_.recents[static_cast<std::size_t>(focus - 5)];
-            launch(recent.file, recent.title, recent.cover);
-        }
-        else
+        if (!home_.setup_ready)
         {
             cue(Cue::error);
+            return;
         }
+        if (game->remote)
+        {
+            play_remote(*game);
+            return;
+        }
+        launch(game->file, game->name, game->cover);
         return;
     default:
         return;
     }
-    if (focus != before)
-        cue(Cue::focus);
+}
+
+void Launcher::press_shelf_grid(Key key)
+{
+    const int count = static_cast<int>(games_.size());
+    if (count == 0)
+    {
+        shelf_grid_ = false;
+        return;
+    }
+    const Game *game = &games_[static_cast<std::size_t>(library_.selected)];
+    switch (key)
+    {
+    case Key::circle:
+        shelf_grid_ = false;
+        shelf_all_ = library_.selected >= std::min(count, kRowGames);
+        cue(Cue::back);
+        return;
+    case Key::up:
+        if (library_.selected >= kCols)
+            select_shelf(library_.selected - kCols);
+        return;
+    case Key::down:
+    {
+        int next = library_.selected + kCols;
+        if (next >= count)
+        {
+            const int last_row = (count - 1) / kCols;
+            if (library_.selected / kCols < last_row)
+                next = count - 1;
+            else
+                return;
+        }
+        select_shelf(next);
+        return;
+    }
+    case Key::left:
+        if (library_.selected % kCols == 0)
+            return;
+        select_shelf(library_.selected - 1);
+        return;
+    case Key::right:
+        if (library_.selected % kCols == kCols - 1 || library_.selected + 1 >= count)
+            return;
+        select_shelf(library_.selected + 1);
+        return;
+    case Key::l2:
+        select_shelf(std::max(0, library_.selected - kPage));
+        return;
+    case Key::r2:
+        select_shelf(std::min(count - 1, library_.selected + kPage));
+        return;
+    case Key::square:
+    {
+        if (!home_.setup_ready)
+        {
+            cue(Cue::error);
+            return;
+        }
+        const bool on = std::find(favorites_.begin(), favorites_.end(), game->file) == favorites_.end();
+        if (!services_.set_favorite(game->file, on))
+        {
+            const bool full = on && favorites_.size() >= 24;
+            say(full ? tr("The shelf already has 24 pinned games.") :
+                       on ? tr("This game cannot be pinned.") : tr("Could not update the shelf."),
+                true);
+            cue(Cue::error);
+            return;
+        }
+        favorites_ = services_.favorites();
+        reseat_shelf();
+        cue(on ? Cue::saved : Cue::toggle);
+        return;
+    }
+    case Key::triangle:
+        open_game_panel();
+        return;
+    case Key::cross:
+        press_ = 1.0f;
+        if (!home_.setup_ready)
+        {
+            cue(Cue::error);
+            return;
+        }
+        if (game->remote)
+        {
+            play_remote(*game);
+            return;
+        }
+        launch(game->file, game->name, game->cover);
+        return;
+    default:
+        return;
+    }
 }
 
 void Launcher::update_controllers(float dt)
@@ -186,202 +472,328 @@ void Launcher::update_controllers(float dt)
     controllers_known_ = true;
 }
 
-void Launcher::draw_controllers(Canvas &c)
+void Launcher::draw_profile_bar(Canvas &c, bool platforms)
 {
-    if (textures_.controller() == 0)
-        return;
-    text(c, tr("CONTROLLERS"), kPadsRight, baseline(462.0f, 30.0f, th().size_small), th().size_small,
-         th().kicker, Align::right, 3.0f);
-    for (int player = 0; player < 4; ++player)
+    gfx::DrawList &list = c.list;
+    const float top_cy = kTopY + kTopH * 0.5f;
+
+    const std::string who = playing_.empty() ? std::string{"Horizon"} : playing_;
+    list.shadow({96.0f, top_cy - 26.0f, 64.0f, 64.0f}, 32.0f, 18.0f, th().scrim.with_alpha(0.08f));
+    list.circle(128.0f, top_cy, 32.0f, th().panel);
+    list.circle(128.0f, top_cy, 29.0f, th().row_focus);
+    text(c, initial(who), 128.0f, baseline(top_cy - 32.0f, 64.0f, 28.0f), 28.0f, th().accent_deep, Align::center);
+    text_shrink(c, who, 176.0f, baseline(kTopY, kTopH, 26.0f), 26.0f, th().title, 380.0f);
+
+    const std::string names[2] = {"Switch", "Switch 2"};
+    float pill[2];
+    for (int i = 0; i < 2; ++i)
+        pill[i] = text_width(c, names[i], 22.0f) + 90.0f;
+    const float key_w = 52.0f;
+    const float track_w = pill[0] + pill[1] + 12.0f;
+    const float total = key_w * 2.0f + 36.0f + track_w;
+    float x = 960.0f - total * 0.5f;
+    const auto keycap = [&](std::string_view label, float left)
     {
-        const std::size_t index = static_cast<std::size_t>(player);
-        const Rect r = pad_rect(player);
-        const float lit = tween::clamp01(controller_lit_[index].value);
-        // A controller that joins lands with a small bounce.
-        const float pop = controller_pop_[index];
-        const float bounce = std::sin(3.14159265f * (1.0f - pop)) * pop * motion();
-        c.list.push_transform(1.0f + 0.34f * bounce, r.x + r.w * 0.5f, r.y + r.h * 0.5f, 0.0f,
-                              -5.0f * bounce);
-        controller_icon(c, r, lit);
-        c.list.pop_transform();
-        const char number[] = {static_cast<char>('1' + player), 0};
-        text(c, number, r.x + r.w * 0.5f, baseline(564.0f, 26.0f, th().size_small), th().size_small,
-             gfx::mix(th().faint.with_alpha(0.6f), th().accent, lit), Align::center);
+        list.bordered_rect({left, top_cy - 18.0f, key_w, 36.0f}, 10.0f, th().panel, 2.0f, th().toggle_track);
+        text(c, label, left + key_w * 0.5f, baseline(top_cy - 18.0f, 36.0f, 16.0f), 16.0f, th().meta,
+             Align::center);
+    };
+    if (!platforms)
+    {
+        text(c, clock_, 1824.0f, baseline(kTopY, kTopH, 26.0f), 26.0f, th().title, Align::right);
+        return;
     }
+    keycap("L1", x);
+    x += key_w + 18.0f;
+    const Rect track{x, top_cy - 29.0f, track_w, 58.0f};
+    list.rounded_rect(track, 29.0f, th().row_edge);
+    float px = track.x + 6.0f;
+    for (int i = 0; i < 2; ++i)
+    {
+        const bool on = platform_ == i;
+        const Rect r{px, track.y + 6.0f, pill[i], 46.0f};
+        if (on)
+        {
+            list.shadow({r.x + 2.0f, r.y + 4.0f, r.w - 4.0f, r.h}, 23.0f, 12.0f, th().scrim.with_alpha(0.08f));
+            list.rounded_rect(r, 23.0f, th().panel);
+            list.circle(r.x + 39.0f, r.y + 23.0f, 5.0f, th().accent);
+        }
+        text(c, names[i], r.x + 56.0f, baseline(r.y, r.h, 22.0f), 22.0f, on ? th().title : th().meta);
+        px += pill[i];
+    }
+    keycap("R1", track.x + track.w + 18.0f);
+    text(c, clock_, 1824.0f, baseline(kTopY, kTopH, 26.0f), 26.0f, th().title, Align::right);
+
+}
+
+float Launcher::draw_brand_bar(Canvas &c)
+{
+    gfx::DrawList &list = c.list;
+    list.rounded_rect({120.0f, 952.0f, 1680.0f, 1.0f}, 0.0f, th().rule);
+    float x = 120.0f;
+    if (const std::uint32_t brand = c.textures.brand(); brand != 0)
+    {
+        list.rounded_image(brand, {x, 962.0f, 40.0f, 40.0f}, {0.0f, 0.0f, 1.0f, 1.0f}, 10.0f, th().panel);
+        x += 54.0f;
+    }
+    return x + text(c, "Horizon", x, 989.0f, th().size_small, th().title) + 48.0f;
 }
 
 void Launcher::draw_home(Canvas &c)
 {
+    if (shelf_grid_)
+    {
+        draw_shelf_grid(c);
+        return;
+    }
     gfx::DrawList &list = c.list;
-    const bool ready = home_.setup_ready;
-    const bool continue_ready = ready && home_.last_exists;
-    const auto focus = [&](int index) { return home_springs_[static_cast<std::size_t>(index)].value; };
-    const auto measure = [&](std::string_view value, float size, float tracking = 0.0f)
-    { return text_width(c, value, size, tracking); };
-    // Each band of the screen arrives a moment after the one above it.
-    const auto arrive = [&](int band)
-    { return tween::cubic_out((intro_ - 0.12f - 0.08f * static_cast<float>(band)) / 0.55f); };
-    const auto begin_band = [&](int band, float rise)
-    {
-        const float e = arrive(band);
-        list.push_opacity(e);
-        list.push_transform(1.0f, 0.0f, 0.0f, 0.0f, (1.0f - e) * rise * motion());
-    };
-    const auto end_band = [&]
-    {
-        list.pop_transform();
-        list.pop_opacity();
-    };
-    // A focused surface grows a little and dips when pressed.
-    const auto begin_lift = [&](const Rect &r, float amount, float grow)
-    {
-        const float scale = 1.0f + (grow * amount - 0.035f * press_ * amount) * motion();
-        list.push_transform(scale, r.x + r.w * 0.5f, r.y + r.h * 0.5f, 0.0f,
-                            -3.0f * amount * motion());
-    };
+    const int count = static_cast<int>(games_.size());
+    const int selected = count == 0 ? -1 : std::clamp(library_.selected, 0, count - 1);
+    const int shown = std::min(count, kRowGames);
+    const Game *game = selected >= 0 ? &games_[static_cast<std::size_t>(selected)] : nullptr;
+    const bool alert_warning = message_warning_ || home_.launch_failed;
+    const std::string alert = !message_.empty() ? message_ : home_.status;
+    draw_profile_bar(c, true);
 
-    // ---- header ----
-    begin_band(0, -18.0f);
-    if (textures_.brand() != 0)
-        list.rounded_image(textures_.brand(), {120.0f, 72.0f, 72.0f, 72.0f},
-                           {0.0f, 0.0f, 1.0f, 1.0f}, 16.0f, kWhite);
-    const float brand_width = text(c, "EGLANTINEPS5", 216.0f, baseline(72.0f, 44.0f, th().size_brand),
-                                   th().size_brand, th().text, Align::left, 3.0f);
-    // The version ends where the name ends, under its last letters (the name's last letter has no
-    // spacing after it).
-    const float brand_right = 216.0f + brand_width - 3.0f;
-    text(c, version_, brand_right, baseline(120.0f, 28.0f, th().size_small), th().size_small,
-         th().caption, Align::right, 1.0f);
-    // Who is playing is named once there is more than one profile to be.
-    if (profiles_.size() > 1 && !playing_.empty())
-        text_shrink(c, "/  " + playing_, brand_right + 16.0f, baseline(120.0f, 28.0f, th().size_small),
-                    th().size_small, th().accent_pale, 300.0f);
-    static constexpr const char *kNav[] = {TR("Library"), TR("Settings"), TR("About")};
-    Rect nav[3];
-    float nav_right = kNavRight;
-    for (int i = 2; i >= 0; --i)
+    const float featured = 256.0f;
+    float sub_x = kRowLeft;
+    if (count > 0)
     {
-        const float width = std::max(kNavWidth, measure(tr(kNav[i]), th().size_text) + 48.0f);
-        nav[i] = {nav_right - width, 80.0f, width, 64.0f};
-        nav_right -= width + 8.0f;
+        const std::string title = shelf_all_ || game == nullptr ? std::string{tr("All games")} : game->name;
+        sub_x += text_shrink(c, title, kRowLeft, featured, th().size_lead, th().title, 980.0f) + 24.0f;
     }
-    for (int i = 0; i < 3; ++i)
+    if (!alert.empty())
+        notice(c, alert, sub_x, featured, 22.0f, alert_warning ? th().warning : th().meta,
+               1800.0f - sub_x, alert_warning);
+    else if (shelf_all_ && count > 0)
+        text(c, fill(tr("{0} games"), {std::to_string(count)}), sub_x, featured, 22.0f, th().meta);
+    else if (game != nullptr)
     {
-        const Rect r = nav[i];
-        const float f = focus(1 + i);
-        list.push_opacity(i == 0 && !ready ? 0.4f : 1.0f);
-        plate(c, nav_plate(), r, f);
-        text(c, tr(kNav[i]), r.x + r.w * 0.5f, baseline(r.y, 60.0f, th().size_text), th().size_text,
-             gfx::mix(th().muted, th().text, f), Align::center);
-        list.pop_opacity();
+        const bool pinned = std::find(favorites_.begin(), favorites_.end(), game->file) != favorites_.end();
+        std::string meta = game->remote ? remote_state(*game, nullptr) : game->format;
+        if (!game->remote && !game->language.empty())
+            meta += std::string{"  /  "} + game->language;
+        if (pinned)
+            meta += std::string{"  /  "} + tr("Pinned");
+        if (!services_.game_profile(game->title_id).empty())
+            meta += std::string{"  /  "} + tr("Recommended");
+        text_shrink(c, meta, sub_x, featured, 22.0f, th().meta, 1800.0f - sub_x);
     }
-    text(c, clock_, 1800.0f, baseline(92.0f, 40.0f, th().size_clock), th().size_clock,
-         th().clock, Align::right);
-    list.rounded_rect({120.0f, 160.0f, 1680.0f, 1.0f}, 0.0f, th().text.with_alpha(0.12f));
-    end_band();
 
-    // ---- continue playing ----
-    begin_band(1, 28.0f);
-    glass(c, kHero, 14.0f, th().glass.with_alpha(0.60f), kWhite.with_alpha(0.125f));
-    cover(c, home_.last_cover, {168.0f, 272.0f, 336.0f, 336.0f}, 16.0f, 1.0f);
-    text(c, tr("CONTINUE PLAYING"), 560.0f, baseline(264.0f, 30.0f, th().size_small), th().size_small,
-         th().accent, Align::left, 3.0f);
-    text_block(c, home_.last_file.empty() ? tr("Your next adventure") : home_.last_title, 560.0f,
-               baseline(312.0f, 56.0f, th().size_display), th().size_display, 56.0f, th().text,
-               1120.0f, 2);
-    notice(c, home_.last_file.empty() ? tr("Choose a game from your library.") : home_.last_caption,
-           560.0f, baseline(424.0f, 36.0f, th().size_text), th().size_text,
-           home_.last_caption_warning ? th().warning : th().detail, 1040.0f,
-           home_.last_caption_warning);
-    // The line under it ends before the controllers' label.
-    const float info_width =
-        kPadsRight - measure(tr("CONTROLLERS"), th().size_small, 3.0f) - 48.0f - 560.0f;
-    if (!home_.last_language.empty())
-        text_shrink(c,
-                    fill(tr("Add-ons: {0}  /  Language: {1}"),
-                         {addons_line(home_.last_addons, home_.last_mods, home_.last_mods_on),
-                          home_.last_language}),
-                    560.0f, baseline(462.0f, 30.0f, th().size_small), th().size_small,
-                    th().detail, info_width);
-    const char *first = continue_ready ? tr("Launch game") : tr("Open library");
-    const char *second = tr("Game details");
-    const float button = std::clamp(
-        std::max(measure(first, th().size_text), measure(second, th().size_text)) + 64.0f,
-        kButtonWidth, kButtonWidest);
-    const Rect continue_rect{560.0f, 504.0f, button, 72.0f};
-    const Rect details_rect{560.0f + button + 16.0f, 504.0f, button, 72.0f};
-    const auto hero_button = [&](const Rect &r, const char *label, float f, bool enabled)
+    if (count == 0)
     {
-        list.push_opacity(enabled ? 1.0f : 0.4f);
-        begin_lift(r, f, 0.035f);
-        plate(c, button_plate(), r, f);
-        text_shrink(c, label, r.x + r.w * 0.5f, baseline(r.y, 70.0f, th().size_text),
-                    th().size_text, th().text, r.w - 32.0f, Align::center);
-        list.pop_transform();
-        list.pop_opacity();
-    };
-    hero_button(continue_rect, first, focus(0), ready);
-    hero_button(details_rect, second, focus(4), continue_ready);
-    text(c, tr("Eglantine emulator for PlayStation 5"), 560.0f, baseline(616.0f, 30.0f, th().size_small),
-         th().size_small, th().faint);
-    draw_controllers(c);
-    end_band();
-
-    // ---- recently played, or what needs attention ----
-    begin_band(2, 28.0f);
-    if (!home_.status.empty())
-    {
-        const Rect panel{120.0f, 728.0f, 1680.0f, 152.0f};
-        const Color accent = home_.launch_failed ? th().warning : th().accent;
-        glass(c, panel, 10.0f, th().status_panel.with_alpha(0.62f), kWhite.with_alpha(0.08f), 0.6f);
-        list.rounded_rect({panel.x, panel.y + 10.0f, 4.0f, panel.h - 20.0f}, 2.0f, accent);
-        notice_block(c, home_.status, 148.0f, baseline(752.0f, 36.0f, th().size_text),
-                     th().size_text, 36.0f, th().text, 1624.0f, 3, home_.launch_failed);
+        text(c, games_loaded_ ? tr("No ROM files found.") : tr("Reading..."), 960.0f,
+             baseline(kRowTop, kTile, th().size_text), th().size_text, th().copy, Align::center);
     }
     else
     {
-        text(c, tr("RECENTLY PLAYED"), 120.0f, baseline(712.0f, 30.0f, th().size_small), th().size_small,
-             th().kicker, Align::left, 3.0f);
+        const int focus = shelf_settings_ ? -1 : shelf_all_ ? shown : selected;
+        for (int i = 0; i <= shown; ++i)
         {
-            const float f = focus(9);
-            const float width =
-                std::max(kViewAllWidth, measure(tr("VIEW ALL GAMES"), th().size_small) + 48.0f);
-            const Rect r{1800.0f - width, 708.0f, width, 40.0f};
-            plate(c, nav_plate(), r, f);
-            text(c, tr("VIEW ALL GAMES"), r.x + r.w - 24.0f, baseline(r.y, 40.0f, th().size_small),
-                 th().size_small, gfx::mix(th().nav, th().accent, f), Align::right);
-        }
-        if (home_.recents.empty())
-            text(c, tr("Games you launch will appear here."), 120.0f,
-                 baseline(784.0f, 36.0f, th().size_text), th().size_text, th().muted);
-        for (int i = 0; i < static_cast<int>(home_.recents.size()) && i < 4; ++i)
-        {
-            const Recent &recent = home_.recents[static_cast<std::size_t>(i)];
-            const Rect r = tile_rect(i);
-            const float f = focus(5 + i);
-            begin_lift(r, f, 0.03f);
-            plate(c, tile_plate(), r, f);
-            cover(c, recent.cover, {r.x + 24.0f, r.y + 24.0f, 96.0f, 96.0f}, 10.0f, 0.5f);
-            text_block(c, recent.title, r.x + 144.0f, baseline(r.y + 40.0f, 32.0f, th().size_text),
-                       th().size_text, 32.0f, gfx::mix(th().tile_title, th().title, f),
-                       232.0f, 2);
-            list.pop_transform();
+            const float tx = kRowLeft + static_cast<float>(i) * (kTile + kTileGap);
+            const Rect cell{tx, kRowTop, kTile, kTile};
+            const bool focused = i == focus;
+            if (focused)
+            {
+                list.push_transform(1.0f + 0.045f * motion(), tx + kTile * 0.5f, kRowTop + kTile * 0.5f, 0.0f, 0.0f);
+                list.shadow({tx + 6.0f, kRowTop + 18.0f, kTile - 12.0f, kTile}, kTileRadius, 40.0f,
+                            th().accent_deep.with_alpha(0.28f));
+            }
+            if (i < shown)
+            {
+                const Game &item = games_[static_cast<std::size_t>(i)];
+                if (item.remote)
+                    remote_cover(c, item.cover, cell, kTileRadius, 0.5f, item.name);
+                else
+                    cover(c, item.cover, cell, kTileRadius, 0.5f, item.name);
+                if (std::find(favorites_.begin(), favorites_.end(), item.file) != favorites_.end())
+                    list.circle(tx + kTile - 28.0f, kRowTop + 28.0f, 11.0f, th().accent);
+                const Download *download = item.remote ? download_of(item.key) : nullptr;
+                if (download != nullptr &&
+                    (download->state == DownloadState::downloading || download->state == DownloadState::verifying) &&
+                    download->total > 0)
+                {
+                    const float done = std::clamp(static_cast<float>(static_cast<double>(download->done) /
+                                                                     static_cast<double>(download->total)),
+                                                  0.0f, 1.0f);
+                    const float bar = kTile - 36.0f;
+                    list.rounded_rect({tx + 18.0f, kRowTop + kTile - 24.0f, bar, 6.0f}, 3.0f,
+                                      th().scrim.with_alpha(0.72f));
+                    list.rounded_rect({tx + 18.0f, kRowTop + kTile - 24.0f, std::max(6.0f, bar * done), 6.0f}, 3.0f,
+                                      th().accent);
+                }
+            }
+            else
+            {
+                list.bordered_rect(cell, kTileRadius, th().panel, 2.0f, th().toggle_track);
+                dock_icon(list, 0, tx + kTile * 0.5f, kRowTop + 130.0f, 64.0f, focused ? th().accent : th().meta);
+                text_shrink(c, tr("All games"), tx + kTile * 0.5f, kRowTop + 212.0f, th().size_text,
+                            focused ? th().title : th().meta, kTile - 40.0f, Align::center);
+            }
+            if (focused)
+            {
+                focus_ring(list, cell, kTileRadius);
+                list.pop_transform();
+            }
         }
     }
-    end_band();
 
-    // ---- footer ----
-    begin_band(3, 0.0f);
-    list.rounded_rect({120.0f, 952.0f, 1680.0f, 1.0f}, 0.0f, th().text.with_alpha(0.10f));
-    static constexpr Hint kHints[] = {
-        {Pad::cross, TR("Select")}, {Pad::triangle, TR("Details")}, {Pad::dpad, TR("Navigate")}};
+    const float dock_left = 960.0f - (kDockItem * kDockItems + kDockGap * (kDockItems - 1)) * 0.5f;
+    for (int i = 0; i < kDockItems; ++i)
+    {
+        const float cx = dock_left + static_cast<float>(i) * (kDockItem + kDockGap) + kDockItem * 0.5f;
+        const float cy = kDockTop + kDockRadius;
+        const bool focused = shelf_settings_ && i == dock_;
+        const Rect disc{cx - kDockRadius, cy - kDockRadius, kDockRadius * 2.0f, kDockRadius * 2.0f};
+        list.shadow({disc.x, disc.y + 6.0f, disc.w, disc.h}, kDockRadius, focused ? 36.0f : 18.0f,
+                    focused ? th().accent_deep.with_alpha(0.28f) : th().scrim.with_alpha(0.08f));
+        list.circle(cx, cy, kDockRadius, th().panel);
+        if (focused)
+            focus_ring(list, disc, kDockRadius);
+        dock_icon(list, i, cx, cy, 46.0f, focused ? th().accent : th().title);
+        text_shrink(c, tr(kDockNames[i]), cx, baseline(cy + kDockRadius + 14.0f, 28.0f, 19.0f), 19.0f,
+                    focused ? th().title : th().meta, kDockItem + kDockGap - 8.0f, Align::center);
+    }
+
+    const float hints_x = draw_brand_bar(c);
+    static constexpr Hint kDockHints[] = {{Pad::cross, TR("Select")},
+                                          {Pad::dpad, TR("Navigate")},
+                                          {Pad::l1, TR("Switch / Switch 2"), Pad::r1}};
+    static constexpr Hint kGameHints[] = {{Pad::cross, TR("Select")},
+                                          {Pad::triangle, TR("Details")},
+                                          {Pad::square, TR("Favorite")},
+                                          {Pad::dpad, TR("Navigate")},
+                                          {Pad::l1, TR("Switch / Switch 2"), Pad::r1}};
+    static constexpr Hint kRemoteHints[] = {{Pad::cross, TR("Download and play")},
+                                            {Pad::triangle, TR("Details")},
+                                            {Pad::square, TR("Favorite")},
+                                            {Pad::dpad, TR("Navigate")},
+                                            {Pad::l1, TR("Switch / Switch 2"), Pad::r1}};
+    const Hint *hints = kGameHints;
+    int hint_count = 5;
+    if (shelf_settings_ || shelf_all_ || game == nullptr)
+    {
+        hints = kDockHints;
+        hint_count = 3;
+    }
+    else if (game->remote)
+    {
+        hints = kRemoteHints;
+    }
     std::string status = home_.system_status;
     if (services_.room_status().phase == Eden::Multiplayer::Phase::Connected)
         status += std::string{"  /  "} + tr("Multiplayer") + ": " + tr("Connected");
-    const float status_width = text_shrink(c, status, 1800.0f, 989.0f, th().size_small,
-                                          th().caption, 1120.0f, Align::right);
-    draw_hints(c, kHints, 3, 120.0f, 982.0f, th().muted, 1680.0f - status_width - 48.0f);
-    end_band();
+    const float status_width =
+        text_shrink(c, status, 1800.0f, 989.0f, th().size_small, th().faint, 600.0f, Align::right);
+    draw_hints(c, hints, hint_count, hints_x, 982.0f, th().muted, 1800.0f - hints_x - status_width - 48.0f);
+}
+
+void Launcher::draw_shelf_grid(Canvas &c)
+{
+    gfx::DrawList &list = c.list;
+    const int count = static_cast<int>(games_.size());
+    const int selected = count == 0 ? -1 : std::clamp(library_.selected, 0, count - 1);
+    const Game *game = selected >= 0 ? &games_[static_cast<std::size_t>(selected)] : nullptr;
+    const bool alert_warning = message_warning_ || home_.launch_failed;
+    const std::string alert = !message_.empty() ? message_ : home_.status;
+
+    text(c, tr("All games"), 120.0f, baseline(64.0f, 44.0f, th().size_brand), th().size_brand, th().text,
+         Align::left, 1.2f);
+    text(c, platform_ == 1 ? "Switch 2" : "Switch", 120.0f, baseline(112.0f, 26.0f, th().size_small), th().size_small,
+         th().meta);
+    text(c, clock_, 1800.0f, baseline(64.0f, 36.0f, th().size_clock), th().size_clock, th().meta, Align::right);
+
+    if (game != nullptr)
+        text_shrink(c, game->name, 960.0f, baseline(68.0f, 44.0f, th().size_heading), th().size_heading,
+                    th().title, 760.0f, Align::center);
+    if (!alert.empty())
+        notice(c, alert, 960.0f, baseline(118.0f, 28.0f, th().size_small), th().size_small,
+               alert_warning ? th().warning : th().meta, 760.0f, alert_warning, Align::center);
+    else if (game != nullptr)
+    {
+        const bool pinned =
+            std::find(favorites_.begin(), favorites_.end(), game->file) != favorites_.end();
+        std::string meta = game->remote ? remote_state(*game, nullptr) : game->format;
+        if (!game->remote && !game->language.empty())
+            meta += std::string{"  /  "} + game->language;
+        if (pinned)
+            meta += std::string{"  /  "} + tr("Pinned");
+        if (!services_.game_profile(game->title_id).empty())
+            meta += std::string{"  /  "} + tr("Recommended");
+        text_shrink(c, meta, 960.0f, baseline(118.0f, 28.0f, th().size_small), th().size_small, th().meta,
+                    760.0f, Align::center);
+    }
+
+    const float scroll = shelf_scroll_.value;
+    list.push_clip({96.0f, kGridTop - 12.0f, 1728.0f, kGridBottom - kGridTop + 24.0f});
+    for (int i = 0; i < count; ++i)
+    {
+        const Game &item = games_[static_cast<std::size_t>(i)];
+        const int col = i % kCols;
+        const int row = i / kCols;
+        const float x = kGridLeft + static_cast<float>(col) * kPitch;
+        const float y = kGridTop + static_cast<float>(row) * kPitch - scroll;
+        if (y + kCell < kGridTop - 8.0f || y > kGridBottom)
+            continue;
+        const bool focused = i == selected;
+        const float cx = x + kCell * 0.5f;
+        const float cy = y + kCell * 0.5f;
+        if (focused)
+            list.push_transform(1.0f + 0.035f * motion(), cx, cy, 0.0f, -3.0f * motion());
+        const Rect cell{x, y, kCell, kCell};
+        if (item.remote)
+            remote_cover(c, item.cover, cell, 10.0f, 0.0f, item.name);
+        else
+            cover(c, item.cover, cell, 10.0f, 0.0f, item.name);
+        if (std::find(favorites_.begin(), favorites_.end(), item.file) != favorites_.end())
+            list.circle(x + kCell - 28.0f, y + 28.0f, 11.0f, th().accent);
+        const Download *download = item.remote ? download_of(item.key) : nullptr;
+        if (download != nullptr &&
+            (download->state == DownloadState::downloading || download->state == DownloadState::verifying) &&
+            download->total > 0)
+        {
+            const float done = std::clamp(static_cast<float>(static_cast<double>(download->done) /
+                                                             static_cast<double>(download->total)),
+                                          0.0f, 1.0f);
+            const float bar = kCell - 36.0f;
+            list.rounded_rect({x + 18.0f, y + kCell - 24.0f, bar, 6.0f}, 3.0f, th().scrim.with_alpha(0.72f));
+            list.rounded_rect({x + 18.0f, y + kCell - 24.0f, std::max(6.0f, bar * done), 6.0f}, 3.0f,
+                              th().accent);
+        }
+        if (focused)
+        {
+            focus_ring(list, cell, 10.0f);
+            list.pop_transform();
+        }
+    }
+    list.pop_clip();
+
+    list.rounded_rect({120.0f, 952.0f, 1680.0f, 1.0f}, 0.0f, th().rule);
+    static constexpr Hint kGameHints[] = {{Pad::cross, TR("Select")},
+                                          {Pad::circle, TR("Back")},
+                                          {Pad::triangle, TR("Details")},
+                                          {Pad::square, TR("Favorite")},
+                                          {Pad::l2, TR("Page"), Pad::r2},
+                                          {Pad::l1, TR("Switch / Switch 2"), Pad::r1}};
+    static constexpr Hint kRemoteHints[] = {{Pad::cross, TR("Download and play")},
+                                            {Pad::circle, TR("Back")},
+                                            {Pad::triangle, TR("Details")},
+                                            {Pad::square, TR("Favorite")},
+                                            {Pad::l2, TR("Page"), Pad::r2},
+                                            {Pad::l1, TR("Switch / Switch 2"), Pad::r1}};
+    const Hint *hints = game != nullptr && game->remote ? kRemoteHints : kGameHints;
+    std::string status;
+    if (selected >= 0)
+        status = list_position(selected + 1, count);
+    if (!home_.system_status.empty())
+    {
+        if (!status.empty())
+            status += "  /  ";
+        status += home_.system_status;
+    }
+    const float status_width =
+        text_shrink(c, status, 1800.0f, 989.0f, th().size_small, th().faint, 900.0f, Align::right);
+    draw_hints(c, hints, 6, 120.0f, 982.0f, th().muted, 1680.0f - status_width - 48.0f);
 }
 
 } // namespace pe::ui
