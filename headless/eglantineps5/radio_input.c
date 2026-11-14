@@ -50,6 +50,8 @@ static const button_map_t buttons[] = {
     {UINT32_C(0x00000040), RADIO_INPUT_DOWN},
     {UINT32_C(0x00000080), RADIO_INPUT_LEFT},
     {UINT32_C(0x00000020), RADIO_INPUT_RIGHT},
+    {UINT32_C(0x00000100), RADIO_INPUT_L2},
+    {UINT32_C(0x00000200), RADIO_INPUT_R2},
 };
 
 static radio_input_event_t queue[INPUT_QUEUE_SIZE];
@@ -125,7 +127,8 @@ static void process_sample(const unsigned char * sample)
         if((changed & buttons[i].button) != 0) {
             const bool down = (current & buttons[i].button) != 0;
             queue_push(buttons[i].key, down);
-            if(buttons[i].key == RADIO_INPUT_L1 || buttons[i].key == RADIO_INPUT_R1) {
+            if(buttons[i].key == RADIO_INPUT_L1 || buttons[i].key == RADIO_INPUT_R1 ||
+               buttons[i].key == RADIO_INPUT_L2 || buttons[i].key == RADIO_INPUT_R2) {
                 if(down) {
                     shoulder_key = buttons[i].key;
                     shoulder_repeat_at = monotonic_milliseconds() + STICK_REPEAT_DELAY_MS;
