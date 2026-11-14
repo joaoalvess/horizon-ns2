@@ -614,6 +614,8 @@ void ArmDynarmic64::MakeJit(Common::PageTable* page_table, std::size_t address_s
 #else // PS5
         // Block links go through the JitGroup (jit_group.h), whose sites are 5/6-byte rel32 jumps
         // already; dynarmic's own patch sites, which this option compacts, are not used.
+        if (const char* const value = std::getenv("EDEN_JIT_COMPACT_EXITS"))
+            config.compact_link_exits = value[0] != '\0' && value[0] != '0';
 #endif // PS5
         // Fault/abort paths, atomic fallbacks and exit stubs go to a cold region at the end of
         // the code cache, so hot blocks sit densely.

@@ -177,6 +177,7 @@ public:
     u64 eden_range_first = 0;
     u64 eden_range_last = 0;
     std::vector<JitGroup::PendingSite> eden_pending_sites;
+    ::Common::unordered_map<u64, const void*> eden_exit_stubs;
     void (*memory_read_128)() = nullptr;
     void (*memory_write_128)() = nullptr;
     void (*memory_exclusive_write_128)() = nullptr;

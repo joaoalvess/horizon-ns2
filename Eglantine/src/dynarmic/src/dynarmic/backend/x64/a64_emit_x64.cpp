@@ -275,6 +275,7 @@ void A64EmitX64::ClearCache() {
     block_ranges.ClearCache();
     ClearFastDispatchTable();
     fastmem_patch_info.clear();
+    eden_exit_stubs.clear();
 }
 
 void A64EmitX64::InvalidateCacheRanges(const boost::icl::interval_set<u64>& ranges) {
@@ -878,8 +879,19 @@ void EdenEmitLink(A64EmitX64& e, IR::LocationDescriptor next, EdenLinkCheck chec
     if (misalignment)
         code.nop(4 - misalignment);
     const auto* site = code.getCurr<const u8*>();
+    const void* shared = nullptr;
+    if (e.conf.compact_link_exits)
+        if (const auto it = e.eden_exit_stubs.find(next.Value()); it != e.eden_exit_stubs.end())
+            shared = it->second;
     Xbyak::Label stub;
-    if (check == EdenLinkCheck::Halt)
+    if (shared) {
+        if (check == EdenLinkCheck::Halt)
+            code.jz(shared);
+        else if (check == EdenLinkCheck::Cycles)
+            code.jg(shared);
+        else
+            code.jmp(shared, code.T_NEAR);
+    } else if (check == EdenLinkCheck::Halt)
         code.jz(stub, code.T_NEAR);
     else if (check == EdenLinkCheck::Cycles)
         code.jg(stub, code.T_NEAR);
@@ -891,12 +903,17 @@ void EdenEmitLink(A64EmitX64& e, IR::LocationDescriptor next, EdenLinkCheck chec
         code.mov(qword[code.ABI_JIT_PTR + offsetof(A64JitState, pc)], rax);
         code.ForceReturnFromRunCode();
     }
-    code.L(stub);
-    code.mov(rax, next_pc);
-    code.mov(qword[code.ABI_JIT_PTR + offsetof(A64JitState, pc)], rax);
-    code.ReturnFromRunCode();
+    if (!shared) {
+        code.L(stub);
+        code.mov(rax, next_pc);
+        code.mov(qword[code.ABI_JIT_PTR + offsetof(A64JitState, pc)], rax);
+        code.ReturnFromRunCode();
+        shared = stub.getAddress();
+        if (e.conf.compact_link_exits)
+            e.eden_exit_stubs.emplace(next.Value(), shared);
+    }
     // Linked when the block is registered (JitGroup::Register), under the group's lock.
-    e.eden_pending_sites.push_back({next, {site, code.writableAddress(site), stub.getAddress(),
+    e.eden_pending_sites.push_back({next, {site, code.writableAddress(site), shared,
                                            check == EdenLinkCheck::None ? JitGroup::SiteKind::Rel32At1 : JitGroup::SiteKind::Rel32At2}});
 }
 

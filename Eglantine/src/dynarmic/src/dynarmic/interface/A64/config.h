@@ -325,6 +325,7 @@ struct UserConfig {
     /// x64 only. Unlinked block exits jump to one shared stub per target (PC store + dispatcher
     /// return) instead of an inline stub, so patch sites are 5/6 bytes instead of 22/23.
     bool compact_block_exits = false;
+    bool compact_link_exits = false;
 
     /// x64 only. Cold code (memory-access fault and abort paths, atomic fallbacks, exit stubs) is
     /// emitted into a separate region at the end of the code cache, away from the hot blocks.
