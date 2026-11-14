@@ -913,7 +913,7 @@ void EdenEmitLink(A64EmitX64& e, IR::LocationDescriptor next, EdenLinkCheck chec
             e.eden_exit_stubs.emplace(next.Value(), shared);
     }
     // Linked when the block is registered (JitGroup::Register), under the group's lock.
-    e.eden_pending_sites.push_back({next, {site, code.writableAddress(site), shared,
+    e.eden_pending_sites.push_back({next, {site, code.writableAddress(site), static_cast<const u8*>(shared),
                                            check == EdenLinkCheck::None ? JitGroup::SiteKind::Rel32At1 : JitGroup::SiteKind::Rel32At2}});
 }
 
