@@ -51,6 +51,10 @@ gh run watch -R joaoalvess/horizon-ns2
 | Arquivo do upstream | Mudança | Motivo |
 |---|---|---|
 | `.github/workflows/release.yml` | Tag com sufixo `-hN` no "Match the tag" e no `publish` | O ZIP continua com o nome da versão do upstream |
+| `Eglantine/src/core/arm/dynarmic/arm_dynarmic_64.cpp` | No PS5, `EDEN_JIT_COMPACT_EXITS` liga `compact_link_exits` (lido a cada JIT, não na inicialização estática) | Patch `compact_exits` |
+| `Eglantine/src/dynarmic/src/dynarmic/backend/x64/a64_emit_x64.cpp`, `a64_emit_x64.h`, `interface/A64/config.h` | Links do `JitGroup` sem destino compilado saltam para um stub de saída por destino (`compact_link_exits`, desligado por padrão) | Patch `compact_exits` |
+| `headless/main.cpp` | Include e uma linha depois do relatório de mods: `Horizon::Patches::Apply(title)` liga as chaves dos patches do jogo antes do `system.Load` | Etapa 5 |
+| `headless/CMakeLists.txt`, `tools/build-headless-host.sh` | Alvo e execução do `eden-horizon-patches-check` | Etapa 5 |
 
 ## Etapas
 
@@ -61,7 +65,7 @@ gh run watch -R joaoalvess/horizon-ns2
 | 2. Tradução | CNX do horizon-switch (`headless/cnx*`, `headless/mega*`, `tools/check-cnx.py`) em arquivos novos, instalando no `mods/` que o upstream já lê | `check-cnx.py` passa e um jogo abre em PT-BR no console | |
 | 3. Perfis | Biblioteca Switch 1 / Switch 2 (L1/R1) e configurações por plataforma (horizon-switch `32fd7bba`, `aea6cfbb`, `3bc00c6f`, `dd9a6ae7`) | Mudar o vídeo do Switch 2 não altera o do Switch 1 no console | |
 | 4. Visual | Launcher do horizon-switch (`fb298e97`..`6d4b6b6c`) em arquivos nossos | Prints do preview no Mac batem com o horizon-switch e foi conferido no console | |
-| 5. Patches | Registro de patches, interruptor por jogo, tabela de recomendados; primeiro patch medido no BotW | Desligado roda como o upstream; ligado melhora o FPS no console | |
+| 5. Patches | Registro de patches, interruptor por jogo, tabela de recomendados; primeiro patch medido no BotW | Desligado roda como o upstream; ligado melhora o FPS no console | Em andamento: registro (`headless/horizon_patches.h`), hook e patch `compact_exits` (`2443fca1`+`85e9a384`) na branch `stage5/patches`; não compilado para PS5 nem medido. O `host_call_return` (`8a8a67dc`) já está no upstream e ligado no multicore |
 
 ## Riscos conhecidos
 
