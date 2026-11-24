@@ -386,6 +386,16 @@ The launcher follows the language the PS5 is set to: Arabic, Chinese (simplified
 
 Earlier versions read everything from `/data/homebrew/PPSA98515/assets/`. That folder keeps working until you choose a game files folder, and settings are migrated automatically on first launch. To move to the new layout, move `assets/keys`, `assets/firmware` and `assets/roms` into any folder, then select it in **Settings > Game files**. The release ZIP contains no user files, so copy its app files over your installation without deleting your own data.
 
+## Changes in v1.004.001
+
+Horizon on top of EglantinePS5 v1.000.004.
+
+- **Launcher.** A new home with a row of recent games, a grid of all games and a dock; game settings as a full sheet beside the cover; Settings in a navigation column; the light Horizon theme and its art.
+- **PT-BR translations (CNX).** Community translations listed and installed from the launcher (Settings > PT-BR translations, and each game's sheet). They install as mods, so the core is unchanged.
+- **Switch and Switch 2.** Separate libraries (L1 and R1), video and performance settings and storage for each platform.
+- **Horizon patches.** Optional core patches, switched on per game in its settings (Horizon patches). The first is compact JIT exits, off by default.
+- **Updates.** The app offers Horizon's releases from this repository, through a catalog signed with Horizon's keys. Settings > About shows the EglantinePS5 core it is built on and whether a newer one exists.
+
 ## Changes in v1.000.004
 
 Pre-release. Two pull requests since v1.000.003, both about memory, and both built on work from [PS5_Lichii](https://codeberg.org/mihawk/PS5_Lichii).

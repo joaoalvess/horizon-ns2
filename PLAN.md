@@ -59,6 +59,9 @@ gh run watch -R joaoalvess/horizon-ns2
 | `headless/update_notice.cpp` | Arquivo da sequence `horizon-update-sequence` | Não mistura com a sequence do prosperostore |
 | `headless/update_check_check.cpp` | URL esperada | Teste do upstream segue a URL nova |
 | `headless/CMakeLists.txt` | `upstream_check.c` no objeto `update-check` | Aviso de núcleo novo |
+| `headless/update_notice.cpp`, `update_notice.h` | `upstream_check` no fim do `Check` e `CoreNotice()` | Linha do núcleo em Configurações > Sobre |
+| `README.md` | Seção `## Changes in v<versão>` | O `make-dist.py` tira dela as notas do release |
+| `headless/settings_store.h`, `profiles.h`, `assets_dir.h`, `main.cpp`, `metadata_bridge.*`, `graphics.cpp`, `headless/eglantineps5/**` | Port do launcher do horizon-switch: plataformas, CNX, tema, arte, telas, categoria de patches | Etapas 2 a 5 |
 | `Eglantine/src/core/arm/dynarmic/arm_dynarmic_64.cpp` | No PS5, `EDEN_JIT_COMPACT_EXITS` liga `compact_link_exits` (lido a cada JIT, não na inicialização estática) | Patch `compact_exits` |
 | `Eglantine/src/dynarmic/src/dynarmic/backend/x64/a64_emit_x64.cpp`, `a64_emit_x64.h`, `interface/A64/config.h` | Links do `JitGroup` sem destino compilado saltam para um stub de saída por destino (`compact_link_exits`, desligado por padrão) | Patch `compact_exits` |
 | `headless/main.cpp` | Include e uma linha depois do relatório de mods: `Horizon::Patches::Apply(title)` liga as chaves dos patches do jogo antes do `system.Load` | Etapa 5 |
@@ -69,11 +72,11 @@ gh run watch -R joaoalvess/horizon-ns2
 | Etapa | O quê | Pronta quando | Status |
 |---|---|---|---|
 | 0. Base | Repo no GitHub, release com tag `-hN` e `check_package`; `make test` do upstream como aviso | Uma tag publica o ZIP no GitHub com lapy e `check_package` passando | Feita em 2026-11-24: `v1.000.004-h1` publicado em 14 min, lapy verificado, `check_package` PASS |
-| 1. Update | Self-updater apontado para os nossos releases, manifesto assinado no CI, aviso de núcleo novo em Configurações > Sobre. Primeira instalação manual no console | Console com `01.004.001` vê o `01.004.002`, baixa e atualiza sozinho | Código no branch `stage1/update` (2026-11-24). Falta: secret, Pages, aviso na UI, primeira instalação e teste no console |
-| 2. Tradução | CNX do horizon-switch (`headless/cnx*`, `headless/mega*`, `tools/check-cnx.py`) em arquivos novos, instalando no `mods/` que o upstream já lê | `check-cnx.py` passa e um jogo abre em PT-BR no console | |
-| 3. Perfis | Biblioteca Switch 1 / Switch 2 (L1/R1) e configurações por plataforma (horizon-switch `32fd7bba`, `aea6cfbb`, `3bc00c6f`, `dd9a6ae7`) | Mudar o vídeo do Switch 2 não altera o do Switch 1 no console | |
-| 4. Visual | Launcher do horizon-switch (`fb298e97`..`6d4b6b6c`) em arquivos nossos | Prints do preview no Mac batem com o horizon-switch e foi conferido no console | |
-| 5. Patches | Registro de patches, interruptor por jogo, tabela de recomendados; primeiro patch medido no BotW | Desligado roda como o upstream; ligado melhora o FPS no console | Em andamento: registro (`headless/horizon_patches.h`), hook e patch `compact_exits` (`2443fca1`+`85e9a384`) na branch `stage5/patches`; não compilado para PS5 nem medido. O `host_call_return` (`8a8a67dc`) já está no upstream e ligado no multicore |
+| 1. Update | Self-updater apontado para os nossos releases, manifesto assinado no CI, aviso de núcleo novo em Configurações > Sobre. Primeira instalação manual no console | Console com `01.004.001` vê o `01.004.002`, baixa e atualiza sozinho | Código na `horizon` (2026-11-24): chaves e catálogo nossos, `horizon-update.yml`, linha do núcleo em Configurações > Sobre. Falta: secret `HORIZON_UPDATE_KEY`, ligar o Pages, primeira instalação e teste no console |
+| 2. Tradução | CNX do horizon-switch (`headless/cnx*`, `headless/mega*`, `tools/check-cnx.py`) em arquivos novos, instalando no `mods/` que o upstream já lê | `check-cnx.py` passa e um jogo abre em PT-BR no console | Código na `horizon` (`8019abe`, 2026-11-24); `check-cnx.py`: 327 checagens passaram no Mac. Falta testar no console |
+| 3. Perfis | Biblioteca Switch 1 / Switch 2 (L1/R1) e configurações por plataforma (horizon-switch `32fd7bba`, `aea6cfbb`, `3bc00c6f`, `dd9a6ae7`) | Mudar o vídeo do Switch 2 não altera o do Switch 1 no console | Código na `horizon` (`319ea2c`, 2026-11-24), com a escolha de renderer do upstream mantida. Falta testar no console |
+| 4. Visual | Launcher do horizon-switch (`fb298e97`..`6d4b6b6c`) em arquivos nossos | Prints do preview no Mac batem com o horizon-switch e foi conferido no console | Código na `horizon` (`96bee37`..`4c81133`, 2026-11-24); as telas de `pe/ui` passam no `-fsyntax-only` do Mac. Falta testar no console |
+| 5. Patches | Registro de patches, interruptor por jogo, tabela de recomendados; primeiro patch medido no BotW | Desligado roda como o upstream; ligado melhora o FPS no console | Código na `horizon` (2026-11-24): registro (`headless/horizon_patches.h`), hook no `main.cpp`, categoria Patches Horizon nas configurações do jogo e patch `compact_exits`, desligado. Falta medir no console. O `host_call_return` (`8a8a67dc`) já está no upstream |
 
 ## Riscos conhecidos
 
