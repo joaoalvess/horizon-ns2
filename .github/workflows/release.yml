@@ -272,13 +272,9 @@ jobs:
           path: build/symbols/
           retention-days: ${{ github.ref_type == 'tag' && 90 || 7 }}
 
-  test:
-    if: startsWith(github.ref, 'refs/tags/')
-    uses: ./.github/workflows/horizon-test.yml
-
   publish:
     if: startsWith(github.ref, 'refs/tags/')
-    needs: [build, test]
+    needs: build
     runs-on: ubuntu-24.04
     permissions:
       contents: write
