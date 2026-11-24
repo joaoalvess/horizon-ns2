@@ -26,9 +26,9 @@ O Horizon é o EglantinePS5 (`heydemoura/EglantinePS5`) com uma camada nossa por
 
 ## Release
 
-- Push no `main` do GitHub: roda `make test` (`.github/workflows/horizon-test.yml`).
-- Push de tag `v*-hN`: o `release.yml` builda o pacote (`make release`, que gera e confere o lapy e roda o `check_package.py`) e chama o `horizon-test.yml`. Só publica o pre-release se os dois passarem.
-- Tempo: os builds de tag do upstream levaram de 40 a 66 min; o primeiro build nosso começa sem cache.
+- Push no `main` do GitHub: roda o `make test` do upstream só como aviso (`.github/workflows/horizon-test.yml`, não trava nada). No `v1.000.004` ele não compila: `headless/memory_check.cpp:25` inclui `core/memory/read_traps.h` e `headless/nup_check.cpp` inclui `core/file_sys/nup.h`, que o núcleo não tem mais.
+- Push de tag `v*-hN`: o `release.yml` builda o pacote (`make release`, que gera e confere o lapy e roda o `check_package.py`) e publica o pre-release se o build passar. Os nossos testes entram nesse gate a partir da etapa 2.
+- Tempo: o primeiro build nosso, sem cache, levou 50 min; os de tag do upstream levaram de 40 a 66 min.
 
 ```fish
 git push github horizon:main
@@ -42,7 +42,7 @@ gh run watch -R joaoalvess/horizon-ns2
 1. `git fetch upstream --tags`
 2. `git switch horizon && git merge --no-ff v<nova>`
 3. Resolver os conflitos e conferir se a tabela "Pontos de contato" continua certa.
-4. `git push github horizon:main` e esperar o `make test` passar.
+4. `git push github horizon:main`.
 5. Tag `v<nova>-h1` e push da tag.
 6. Atualizar a "Base atual" deste arquivo.
 
@@ -50,13 +50,13 @@ gh run watch -R joaoalvess/horizon-ns2
 
 | Arquivo do upstream | Mudança | Motivo |
 |---|---|---|
-| `.github/workflows/release.yml` | Tag com sufixo `-hN`; job `test`; `publish` depende de `build` e `test` | Release nosso só sai com os testes passando |
+| `.github/workflows/release.yml` | Tag com sufixo `-hN` no "Match the tag" e no `publish` | O ZIP continua com o nome da versão do upstream |
 
 ## Etapas
 
 | Etapa | O quê | Pronta quando | Status |
 |---|---|---|---|
-| 0. Base | Repo no GitHub, release com tag `-hN`, CI com `make test` e `check_package` | Uma tag gera o ZIP no GitHub com lapy e testes passando | Em andamento |
+| 0. Base | Repo no GitHub, release com tag `-hN` e `check_package`; `make test` do upstream como aviso | Uma tag publica o ZIP no GitHub com lapy e `check_package` passando | Em andamento |
 | 1. Update | Self-updater apontado para os nossos releases, manifesto assinado no CI, aviso de núcleo novo em Configurações > Sobre. Primeira instalação manual no console | Console com `-h1` vê o `-h2`, baixa e atualiza sozinho | |
 | 2. Tradução | CNX do horizon-switch (`headless/cnx*`, `headless/mega*`, `tools/check-cnx.py`) em arquivos novos, instalando no `mods/` que o upstream já lê | `check-cnx.py` passa e um jogo abre em PT-BR no console | |
 | 3. Perfis | Biblioteca Switch 1 / Switch 2 (L1/R1) e configurações por plataforma (horizon-switch `32fd7bba`, `aea6cfbb`, `3bc00c6f`, `dd9a6ae7`) | Mudar o vídeo do Switch 2 não altera o do Switch 1 no console | |
