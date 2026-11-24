@@ -13,6 +13,7 @@
 #include "profiles.h"
 #include "update_notice.h"
 #include "game_name.h"
+#include "horizon_patches.h"
 #include "native_directory.h"
 #include "extracted_game.h"
 #include "pe/core/strings.hpp"
@@ -1313,6 +1314,12 @@ pe::ui::GameSettings EdenServices::game_settings(std::uint64_t title_id) {
     result.mapping = saved.mapping;
     result.performance = saved.performance;
     result.rng_seed = saved.rng_seed;
+    const Eden::Settings::Json document = Eden::Settings::Load(Eden::SettingsFile());
+    for (const auto& patch : Horizon::Patches::List()) {
+        const auto at = Horizon::Patches::StateAt(title_id, patch.id);
+        result.patches.push_back(document.contains(at) && document.at(at).is_boolean() ? document.at(at).get<bool>() : -1);
+        result.patch_usual.push_back(Horizon::Patches::Recommended(patch, title_id));
+    }
     return result;
 }
 
@@ -1337,6 +1344,11 @@ bool EdenServices::set_game_settings(std::uint64_t title_id, const pe::ui::GameS
     value.performance = settings.performance;
     value.rng_seed = settings.rng_seed;
     const bool saved = Eden::SaveGameSettings(title_id, value);
+    const auto& patches = Horizon::Patches::List();
+    for (std::size_t i = 0; i < patches.size() && i < settings.patches.size(); ++i)
+        Horizon::Patches::SetEnabled(title_id, patches[i].id,
+                                     settings.patches[i] < 0 ? Horizon::Patches::Recommended(patches[i], title_id)
+                                                             : settings.patches[i] == 1);
     if (!saved) Eden::Report("settings", "Could not write game settings");
     return saved;
 }
@@ -1451,6 +1463,15 @@ int EdenServices::frame_gen_state() {
 
 const std::vector<std::string>& EdenServices::filter_labels() {
     static const std::vector<std::string> labels = Labels(Eden::kUpscalingFilterLabels);
+    return labels;
+}
+
+const std::vector<std::string>& EdenServices::patch_labels() {
+    static const std::vector<std::string> labels = [] {
+        std::vector<std::string> names;
+        for (const auto& patch : Horizon::Patches::List()) names.emplace_back(patch.name);
+        return names;
+    }();
     return labels;
 }
 

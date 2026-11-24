@@ -2551,3 +2551,13 @@ msgstr "Entardecer tropical, vidro verde-escuro e lima."
 
 msgid "Neutral glass, clean and still."
 msgstr "Vidro neutro, limpo e calmo."
+
+#: pe/ui/game_options.cpp
+msgid "Horizon patches"
+msgstr "Patches Horizon"
+
+msgid "Compact JIT exits"
+msgstr "Saídas do JIT compactas"
+
+msgid "Jumps to code that is not compiled yet share one exit per target, so more code fits the cache."
+msgstr "Saltos para código ainda não compilado dividem uma saída por destino, e cabe mais código no cache."

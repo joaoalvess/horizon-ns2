@@ -270,6 +270,11 @@ class FakeServices final : public ui::Services
     const std::vector<std::string> &resolution_keys() override;
     const std::vector<std::string> &filter_labels() override;
     const std::vector<std::string> &language_labels() override;
+    const std::vector<std::string> &patch_labels() override
+    {
+        static const std::vector<std::string> labels = {"Compact JIT exits"};
+        return labels;
+    }
     std::string language_region(int language) override;
     std::string setup_details() override;
     bool folders(const std::string &directory, std::vector<std::string> *names) override;

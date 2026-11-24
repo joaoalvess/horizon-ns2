@@ -37,9 +37,10 @@ enum Category : int
     category_controls,
     category_system,
     category_language,
+    category_patches,
 };
 constexpr const char *kCategoryNames[] = {TR("Video"), TR("Performance"), TR("Audio"), TR("Controls"),
-                                          TR("System"), TR("Language")};
+                                          TR("System"), TR("Language"), TR("Horizon patches")};
 // The Controls category's rows.
 constexpr int kVibrationRow = 0;
 constexpr int kMappingRow = 1;
@@ -178,6 +179,14 @@ std::vector<Option> options(int category, const GameSettings &game, Preferences 
         rows.push_back({tr("RNG seed"), {std::to_string(std::max<std::int64_t>(game.rng_seed, 0))},
                         game.rng_seed >= 0 ? 0 : -1, tr("Random")});
         break;
+    case category_patches:
+    {
+        const auto &labels = services.patch_labels();
+        for (std::size_t i = 0; i < labels.size(); ++i)
+            rows.push_back({tr(labels[i].c_str()), off_on, i < game.patches.size() ? game.patches[i] : -1,
+                            on_off(i < game.patch_usual.size() && game.patch_usual[i] == 1)});
+        break;
+    }
     default:
         rows.push_back({tr("Language"), services.language_labels(), game.language,
                         pick(services.language_labels(), prefs.language)});
@@ -221,6 +230,10 @@ GameSettings with_option(GameSettings game, int category, int row, int value, co
     case category_system:
         game.rng_seed = value < 0 ? -1 : std::max<std::int64_t>(game.rng_seed, 0);
         break;
+    case category_patches:
+        if (row >= 0 && row < static_cast<int>(game.patches.size()))
+            game.patches[static_cast<std::size_t>(row)] = value;
+        break;
     default:
         game.language = value;
         break;
@@ -248,6 +261,9 @@ int Launcher::game_overrides(int category) const
         return (game.vibration >= 0) + game.own_mapping + (game.controller >= 0);
     case category_system:
         return game.rng_seed >= 0;
+    case category_patches:
+        return static_cast<int>(
+            std::count_if(game.patches.begin(), game.patches.end(), [](int v) { return v >= 0; }));
     default:
         return game.language >= 0;
     }

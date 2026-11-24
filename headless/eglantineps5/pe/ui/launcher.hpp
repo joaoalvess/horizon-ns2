@@ -202,7 +202,7 @@ class Launcher
     // ---- a game's own settings by category, and the button mapping (game_options.cpp) ----
     // Categories, in the order of the game settings' rows: video, performance, audio, controls,
     // system, language.
-    static constexpr int kGameOptionCategories = 6;
+    static constexpr int kGameOptionCategories = 7;
     void open_game_options(int category);
     void press_game_options(Key key);
     // The RNG seed is typed on the system keyboard: opens it, and takes its answer when it closes.

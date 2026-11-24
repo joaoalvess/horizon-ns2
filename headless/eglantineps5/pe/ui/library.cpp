@@ -42,6 +42,7 @@ enum GameRow : int
     row_controls,
     row_system,
     row_language,
+    row_patches,
     row_mods,
     row_translation,
     row_save,   // in builds that move saves
@@ -814,7 +815,7 @@ void Launcher::press_game(Key key)
     default:
         return;
     }
-    if (kind >= row_video && kind <= row_language)
+    if (kind >= row_video && kind <= row_patches)
     {
         // A kind of setting has its own list.
         if (key == Key::cross)
@@ -970,6 +971,7 @@ void Launcher::draw_game(Canvas &c, float open, bool behind)
         changed(row_controls - row_video),
         changed(row_system - row_video),
         changed(row_language - row_video),
+        changed(row_patches - row_video),
         // With the game's Mods switch off (the Library's), none of them is on.
         mods_.empty() ? std::string{tr("No mods")} :
         game != nullptr && !game->mods_enabled ? std::string{tr("Off")} :
@@ -985,7 +987,7 @@ void Launcher::draw_game(Canvas &c, float open, bool behind)
     };
     static constexpr const char *kLabels[] = {TR("Console mode"), TR("Video"),    TR("Performance"),
                                               TR("Audio"),        TR("Controls"), TR("System"),
-                                              TR("Language"),     TR("Mods"),     TR("PT-BR translation available (CNX)"), TR("Save data"),
+                                              TR("Language"),     TR("Horizon patches"), TR("Mods"),     TR("PT-BR translation available (CNX)"), TR("Save data"),
                                               TR("Delete from console")};
     // Five rows show; the list scrolls to the others.
     list.push_clip({kSheetWindow.x - 8.0f, kSheetWindow.y - 8.0f, kSheetWindow.w + 16.0f,

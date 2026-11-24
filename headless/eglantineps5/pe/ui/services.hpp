@@ -374,6 +374,8 @@ struct GameSettings
     // unsafe CPU, unsafe DMA, reactive flushing, skip invalidation.
     std::array<int, 7> performance{-1, -1, -1, -1, -1, -1, -1};
     int64_t rng_seed = -1;
+    std::vector<int> patches;
+    std::vector<int> patch_usual;
 };
 
 // One cheat of a mod that lists several: each is chosen on its own.
@@ -498,6 +500,7 @@ class Services
         return 0;
     }
     virtual const std::vector<std::string> &language_labels() = 0;
+    virtual const std::vector<std::string> &patch_labels() = 0;
     virtual std::string language_region(int language) = 0;
     virtual std::string setup_details() = 0;
 
