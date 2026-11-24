@@ -30,6 +30,7 @@ jobs:
     permissions:
       contents: write
       pages: write
+      attestations: read
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -70,10 +71,10 @@ jobs:
           mkdir -p "$RUNNER_TEMP/release"
           jq -r '.body // ""' <<< "$info" > "$RUNNER_TEMP/release/notes.md"
           gh release download "$tag" --repo "$GITHUB_REPOSITORY" --dir "$RUNNER_TEMP/release" --pattern "$zip"
-          if jq -e 'any(.assets[]; .name == "SHA256SUMS")' <<< "$info" > /dev/null; then
-            gh release download "$tag" --repo "$GITHUB_REPOSITORY" --dir "$RUNNER_TEMP/release" --pattern SHA256SUMS
-            (cd "$RUNNER_TEMP/release" && sha256sum -c SHA256SUMS)
-          fi
+          gh release download "$tag" --repo "$GITHUB_REPOSITORY" --dir "$RUNNER_TEMP/release" --pattern SHA256SUMS
+          (cd "$RUNNER_TEMP/release" && sha256sum -c SHA256SUMS)
+          gh attestation verify "$RUNNER_TEMP/release/$zip" --repo "$GITHUB_REPOSITORY" \
+            --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml"
           {
             echo "tag=$tag"
             echo "zip=$zip"
@@ -95,8 +96,14 @@ jobs:
             exit 1
           fi
           current="$RUNNER_TEMP/current.json"
-          if git fetch -q --depth 1 origin gh-pages 2> /dev/null; then
-            git show FETCH_HEAD:api/v1/apps/PPSA98515.json > "$current" 2> /dev/null || rm -f "$current"
+          found=0
+          git ls-remote --exit-code --heads origin gh-pages > /dev/null || found=$?
+          if [ "$found" -eq 0 ]; then
+            git fetch -q --depth 1 origin gh-pages
+            git show FETCH_HEAD:api/v1/apps/PPSA98515.json > "$current"
+          elif [ "$found" -ne 2 ]; then
+            echo "::error title=Catalog unreadable::Could not read the gh-pages branch."
+            exit 1
           fi
           key="$RUNNER_TEMP/update-signing.pem"
           trap 'rm -f "$key"' EXIT
