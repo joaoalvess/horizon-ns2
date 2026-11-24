@@ -22,18 +22,21 @@ O Horizon é o EglantinePS5 (`heydemoura/EglantinePS5`) com uma camada nossa por
 1. Código nosso fica em arquivos novos. Cada alteração em arquivo do upstream é pequena e entra na tabela "Pontos de contato".
 2. O núcleo (`Eglantine/`, `src/`) só muda por patch Horizon: compilado no build, desligado por padrão e ligado por jogo no launcher. Correção de bug que não é opcional vai como PR para o upstream.
 3. Núcleo novo entra por merge da tag do upstream, nunca por rebase: o `main` do GitHub nunca é reescrito.
-4. Versão: tag `v<versão do upstream>-hN` (ex.: `v1.000.004-h1`). O `N` sobe a cada release nosso e volta a 1 quando a base muda.
+4. Versão: `contentVersion` `01.<patch do upstream>.<revisão nossa>` em `sce_sys/param.json` (base `v1.000.004` → `01.004.001`), tag `v1.004.001`. A revisão sobe a cada release nosso e volta a `001` quando a base muda. A base fica também em `UPSTREAM_CHECK_BASE_TAG` (`headless/update_check/upstream_check.h`).
 
 ## Release
 
 - Push no `main` do GitHub: roda o `make test` do upstream só como aviso (`.github/workflows/horizon-test.yml`, não trava nada). No `v1.000.004` ele não compila: `headless/memory_check.cpp:25` inclui `core/memory/read_traps.h` e `headless/nup_check.cpp` inclui `core/file_sys/nup.h`, que o núcleo não tem mais.
-- Push de tag `v*-hN`: o `release.yml` builda o pacote (`make release`, que gera e confere o lapy e roda o `check_package.py`) e publica o pre-release se o build passar. Os nossos testes entram nesse gate a partir da etapa 2.
+- Push de tag `v*`: o `release.yml` do upstream, sem mudança, builda o pacote (`make release`, que gera e confere o lapy e roda o `check_package.py`) e publica o pre-release se o build passar. Os nossos testes entram nesse gate a partir da etapa 2.
+- As notas do release vêm da seção `## Changes in v<versão>` do `README.md` (`tools/ci/make-dist.py`). Sem ela, o `gh release create` falha: crie antes o release como rascunho com as notas (`gh release create <tag> --draft --notes-file ...`) e publique depois que o ZIP entrar.
+- Release publicado: o `.github/workflows/horizon-update.yml` baixa o ZIP, gera `api/v1/apps/PPSA98515.json` e `api/v1/manifest.json` (sequence = segundos unix), assina com o secret `HORIZON_UPDATE_KEY` (`tools/horizon/sign-catalog.py`, que confere a assinatura contra as chaves de `self_update.c`) e publica no `gh-pages`. O app consulta `https://joaoalvess.github.io/horizon-ns2/api/v1/` e, se falhar, `https://raw.githubusercontent.com/joaoalvess/horizon-ns2/gh-pages/api/v1/`. Roda também depois de cada "Release build" de tag e à mão (`gh workflow run horizon-update.yml -f tag=<tag>`).
+- Chaves Ed25519: `~/.config/horizon/update-signing.pem` (a do secret) e `~/.config/horizon/update-signing-spare.pem` (reserva). Nunca entram no git.
 - Tempo: o primeiro build nosso, sem cache, levou 50 min; os de tag do upstream levaram de 40 a 66 min.
 
 ```fish
 git push github horizon:main
-git tag -a v1.000.004-h1 -m 'Horizon v1.000.004-h1'
-git push github v1.000.004-h1
+git tag -a v1.004.001 -m 'Horizon v1.004.001'
+git push github v1.004.001
 gh run watch -R joaoalvess/horizon-ns2
 ```
 
@@ -43,14 +46,19 @@ gh run watch -R joaoalvess/horizon-ns2
 2. `git switch horizon && git merge --no-ff v<nova>`
 3. Resolver os conflitos e conferir se a tabela "Pontos de contato" continua certa.
 4. `git push github horizon:main`.
-5. Tag `v<nova>-h1` e push da tag.
+5. `contentVersion` `01.<novo patch>.001` e `UPSTREAM_CHECK_BASE_TAG` `v<nova>`; tag `v1.<novo patch>.001` e push da tag.
 6. Atualizar a "Base atual" deste arquivo.
 
 ## Pontos de contato
 
 | Arquivo do upstream | Mudança | Motivo |
 |---|---|---|
-| `.github/workflows/release.yml` | Tag com sufixo `-hN` no "Match the tag" e no `publish` | O ZIP continua com o nome da versão do upstream |
+| `sce_sys/param.json` | `contentVersion` no nosso esquema | A versão do app é a nossa |
+| `headless/update_check/update_check.h`, `self_update.h` | `UPDATE_CHECK_HOST`, `UPDATE_CHECK_API`, `UPDATE_CHECK_MIRROR_API`, `SELF_UPDATE_API` | O updater consulta o nosso catálogo |
+| `headless/update_check/self_update.c` | `self_update_keys` | Só aceita o catálogo assinado por nós |
+| `headless/update_notice.cpp` | Arquivo da sequence `horizon-update-sequence` | Não mistura com a sequence do prosperostore |
+| `headless/update_check_check.cpp` | URL esperada | Teste do upstream segue a URL nova |
+| `headless/CMakeLists.txt` | `upstream_check.c` no objeto `update-check` | Aviso de núcleo novo |
 | `Eglantine/src/core/arm/dynarmic/arm_dynarmic_64.cpp` | No PS5, `EDEN_JIT_COMPACT_EXITS` liga `compact_link_exits` (lido a cada JIT, não na inicialização estática) | Patch `compact_exits` |
 | `Eglantine/src/dynarmic/src/dynarmic/backend/x64/a64_emit_x64.cpp`, `a64_emit_x64.h`, `interface/A64/config.h` | Links do `JitGroup` sem destino compilado saltam para um stub de saída por destino (`compact_link_exits`, desligado por padrão) | Patch `compact_exits` |
 | `headless/main.cpp` | Include e uma linha depois do relatório de mods: `Horizon::Patches::Apply(title)` liga as chaves dos patches do jogo antes do `system.Load` | Etapa 5 |
@@ -61,7 +69,7 @@ gh run watch -R joaoalvess/horizon-ns2
 | Etapa | O quê | Pronta quando | Status |
 |---|---|---|---|
 | 0. Base | Repo no GitHub, release com tag `-hN` e `check_package`; `make test` do upstream como aviso | Uma tag publica o ZIP no GitHub com lapy e `check_package` passando | Feita em 2026-11-24: `v1.000.004-h1` publicado em 14 min, lapy verificado, `check_package` PASS |
-| 1. Update | Self-updater apontado para os nossos releases, manifesto assinado no CI, aviso de núcleo novo em Configurações > Sobre. Primeira instalação manual no console | Console com `-h1` vê o `-h2`, baixa e atualiza sozinho | |
+| 1. Update | Self-updater apontado para os nossos releases, manifesto assinado no CI, aviso de núcleo novo em Configurações > Sobre. Primeira instalação manual no console | Console com `01.004.001` vê o `01.004.002`, baixa e atualiza sozinho | Código no branch `stage1/update` (2026-11-24). Falta: secret, Pages, aviso na UI, primeira instalação e teste no console |
 | 2. Tradução | CNX do horizon-switch (`headless/cnx*`, `headless/mega*`, `tools/check-cnx.py`) em arquivos novos, instalando no `mods/` que o upstream já lê | `check-cnx.py` passa e um jogo abre em PT-BR no console | |
 | 3. Perfis | Biblioteca Switch 1 / Switch 2 (L1/R1) e configurações por plataforma (horizon-switch `32fd7bba`, `aea6cfbb`, `3bc00c6f`, `dd9a6ae7`) | Mudar o vídeo do Switch 2 não altera o do Switch 1 no console | |
 | 4. Visual | Launcher do horizon-switch (`fb298e97`..`6d4b6b6c`) em arquivos nossos | Prints do preview no Mac batem com o horizon-switch e foi conferido no console | |
@@ -69,6 +77,6 @@ gh run watch -R joaoalvess/horizon-ns2
 
 ## Riscos conhecidos
 
-- Até a etapa 1, o updater do app consulta o prosperostore.net pelo title ID `PPSA98515` e oferece a versão do upstream, que apagaria a camada.
+- Um console com `v1.000.004-h1` ou com o app do upstream ainda consulta o prosperostore.net e oferece a versão do upstream, que apagaria a camada. A primeira instalação do `01.004.001` é manual.
 - O `check_package.py` exige `titleId` `PPSA98515` e `titleName` `EglantinePS5`: renomear o app mexe nele.
 - Dos 110 commits de núcleo do `rewrite/ps5-platform`, 52 não aplicavam limpo no `v1.000.004` (simulação de 2026-11-24). Patch de núcleo precisa ser pequeno no ponto de contato.
