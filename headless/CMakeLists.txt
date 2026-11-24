@@ -582,6 +582,7 @@ endif()
                 "${EDEN_PORT_DIR}/update_check/self_update.c"
                 "${EDEN_PORT_DIR}/update_check/self_update_ps5.c"
                 "${EDEN_PORT_DIR}/update_check/self_update_sha256.c"
+                "${EDEN_PORT_DIR}/update_check/upstream_check.c"
                 "${EDEN_PORT_DIR}/remote/http.c")
             target_include_directories(update-check PRIVATE "${OPENSSL_INCLUDE_DIR}" "${EDEN_PORT_DIR}/update_check")
             # The kit's paths are the app's own: after elevation /app0 and /download0 are gone
