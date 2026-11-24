@@ -27,6 +27,7 @@ public:
     std::string clock() override;
     unsigned controllers() override;
     std::string version() override;
+    std::string core_notice() override;
 
     std::vector<pe::ui::Game> games() override;
     std::vector<std::string> favorites() override;

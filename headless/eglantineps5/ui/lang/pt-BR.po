@@ -2561,3 +2561,11 @@ msgstr "Saídas do JIT compactas"
 
 msgid "Jumps to code that is not compiled yet share one exit per target, so more code fits the cache."
 msgstr "Saltos para código ainda não compilado dividem uma saída por destino, e cabe mais código no cache."
+
+#: pe/ui/settings.cpp
+msgid "CORE"
+msgstr "NÚCLEO"
+
+#: eden_services.cpp
+msgid "available"
+msgstr "disponível"

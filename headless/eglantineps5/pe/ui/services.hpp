@@ -424,6 +424,7 @@ class Services
         return 1u;
     }
     virtual std::string version() = 0; // "v1.000.040"
+    virtual std::string core_notice() = 0;
     // A newer release than this one is listed (asked once per launch): handed over once, when the
     // answer has come.
     virtual bool take_update(UpdateOffer *)

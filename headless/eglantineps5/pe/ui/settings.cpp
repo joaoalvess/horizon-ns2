@@ -439,7 +439,7 @@ void Launcher::draw_settings(Canvas &c)
         break;
     case kAbout:
         about = tr("Credits and setup");
-        lines = {{tr("VERSION"), version_}};
+        lines = {{tr("VERSION"), version_}, {tr("CORE"), services_.core_notice()}};
         break;
     default:
         about = tr("The language games use when they offer it.");

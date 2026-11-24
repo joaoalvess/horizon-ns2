@@ -12,6 +12,7 @@
 #include "storage_paths.h"
 #include "update_check/self_update.h"
 #include "update_check/update_check.h"
+#include "update_check/upstream_check.h"
 #ifdef EDEN_DEV_PROFILE
 #include <fstream>
 #endif
@@ -35,6 +36,7 @@ bool started = false;
 bool found = false;  // an offer nobody has been told about yet
 self_update_check_result answer = SELF_UPDATE_UNKNOWN;
 self_update_offer offer{};
+std::string core_newer;
 self_update_job job{};  // zero until the first Begin, as the kit asks
 bool begun = false;
 
@@ -93,6 +95,12 @@ void* Check(void*) {
         offer = result;
         found = true;
     }
+    char latest[64] = {};
+    if (upstream_check_latest_blocking(UPSTREAM_CHECK_BASE_TAG, latest, sizeof(latest)) == UPSTREAM_CHECK_NEWER_AVAILABLE) {
+        Report("update check", (std::string("core: EglantinePS5 ") + latest + " is newer than " + UPSTREAM_CHECK_BASE_TAG).c_str());
+        const std::lock_guard guard(lock);
+        core_newer = latest;
+    }
     return nullptr;
 }
 
@@ -124,6 +132,11 @@ void Start() {
     if (pthread_create(&thread, &attributes, Check, nullptr) != 0)
         Report("update check", "The thread could not start");
     pthread_attr_destroy(&attributes);
+}
+
+std::string CoreNotice() {
+    const std::lock_guard guard(lock);
+    return core_newer;
 }
 
 bool Take(Offer* out) {

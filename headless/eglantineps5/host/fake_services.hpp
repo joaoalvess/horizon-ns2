@@ -75,6 +75,10 @@ class FakeServices final : public ui::Services
     {
         return "v1.000.040";
     }
+    std::string core_notice() override
+    {
+        return "EglantinePS5 v1.000.004  ·  v1.000.005 available";
+    }
     // The people who play on the preview's console.
     std::vector<ui::Profile> people{{"Eden", true}};
     std::vector<ui::Profile> profiles() override

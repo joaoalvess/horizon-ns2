@@ -12,6 +12,7 @@
 #include "mods.h"
 #include "profiles.h"
 #include "update_notice.h"
+#include "update_check/upstream_check.h"
 #include "game_name.h"
 #include "horizon_patches.h"
 #include "native_directory.h"
@@ -936,6 +937,13 @@ std::string EdenServices::clock() {
 }
 
 unsigned EdenServices::controllers() { return radio_input_controllers(); }
+
+std::string EdenServices::core_notice() {
+    std::string text = std::string("EglantinePS5 ") + UPSTREAM_CHECK_BASE_TAG;
+    const std::string newer = Eden::UpdateNotice::CoreNotice();
+    if (!newer.empty()) text += std::string("  ·  ") + newer + " " + tr("available");
+    return text;
+}
 
 std::string EdenServices::version() {
     // "01.000.040" is shown as v1.0.40: each number without its leading zeros.

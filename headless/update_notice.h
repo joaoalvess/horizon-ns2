@@ -29,6 +29,7 @@ struct Offer {
 // A newer release than this one, once, when the check's answer has come: false when there is
 // nothing (yet) to tell.
 bool Take(Offer* offer);
+std::string CoreNotice();
 
 // In the order of pe::ui::UpdatePhase (eden_services.cpp converts one to the other by number).
 enum class Phase { idle, starting, downloading, unpacking, ready, applying, cancelled, failed };
