@@ -1,0 +1,132 @@
+name: Horizon update catalog
+
+on:
+  release:
+    types: [published]
+  workflow_run:
+    workflows: ["Release build"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag the app should offer, e.g. v1.004.001"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: horizon-update-catalog
+  cancel-in-progress: false
+
+jobs:
+  catalog:
+    name: Publish the signed update catalog
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pages: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Download the release ZIP
+        id: release
+        env:
+          EVENT: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RUN_TAG: ${{ github.event.workflow_run.head_branch }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          skip() {
+            if [ "$EVENT" = workflow_dispatch ]; then
+              echo "::error title=No catalog update::$1"
+              exit 1
+            fi
+            echo "::notice title=No catalog update::$1"
+            echo "skip=1" >> "$GITHUB_OUTPUT"
+            exit 0
+          }
+          case "$EVENT" in
+            release) tag=$RELEASE_TAG ;;
+            workflow_run) tag=$RUN_TAG ;;
+            *) tag=$INPUT_TAG ;;
+          esac
+          [[ $tag =~ ^v[0-9]{1,2}\.[0-9]{3}\.[0-9]{3}$ ]] || skip "'$tag' is not a vX.YYY.ZZZ release tag."
+          info=$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json isDraft,isPrerelease,publishedAt,body,assets) ||
+            skip "There is no release for $tag."
+          [ "$(jq -r .isDraft <<< "$info")" = false ] || skip "The release for $tag is still a draft; publishing it runs this again."
+          zip="EglantinePS5-$tag.zip"
+          jq -e --arg zip "$zip" 'any(.assets[]; .name == $zip)' <<< "$info" > /dev/null ||
+            skip "The release for $tag has no $zip yet."
+          mkdir -p "$RUNNER_TEMP/release"
+          jq -r '.body // ""' <<< "$info" > "$RUNNER_TEMP/release/notes.md"
+          gh release download "$tag" --repo "$GITHUB_REPOSITORY" --dir "$RUNNER_TEMP/release" --pattern "$zip"
+          if jq -e 'any(.assets[]; .name == "SHA256SUMS")' <<< "$info" > /dev/null; then
+            gh release download "$tag" --repo "$GITHUB_REPOSITORY" --dir "$RUNNER_TEMP/release" --pattern SHA256SUMS
+            (cd "$RUNNER_TEMP/release" && sha256sum -c SHA256SUMS)
+          fi
+          {
+            echo "tag=$tag"
+            echo "zip=$zip"
+            echo "released=$(jq -r '.publishedAt // ""' <<< "$info")"
+            echo "prerelease=$(jq -r .isPrerelease <<< "$info")"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Write and sign the catalog
+        if: steps.release.outputs.skip != '1'
+        env:
+          HORIZON_UPDATE_KEY: ${{ secrets.HORIZON_UPDATE_KEY }}
+          ZIP: ${{ steps.release.outputs.zip }}
+          RELEASED: ${{ steps.release.outputs.released }}
+          PRERELEASE: ${{ steps.release.outputs.prerelease }}
+        run: |
+          set -euo pipefail
+          if [ -z "$HORIZON_UPDATE_KEY" ]; then
+            echo "::error title=No signing key::Set the HORIZON_UPDATE_KEY secret to the Ed25519 private key (PEM)."
+            exit 1
+          fi
+          current="$RUNNER_TEMP/current.json"
+          if git fetch -q --depth 1 origin gh-pages 2> /dev/null; then
+            git show FETCH_HEAD:api/v1/apps/PPSA98515.json > "$current" 2> /dev/null || rm -f "$current"
+          fi
+          key="$RUNNER_TEMP/update-signing.pem"
+          trap 'rm -f "$key"' EXIT
+          (umask 077 && printf '%s\n' "$HORIZON_UPDATE_KEY" > "$key")
+          prerelease=()
+          [ "$PRERELEASE" = true ] && prerelease=(--prerelease)
+          python3 tools/horizon/sign-catalog.py --zip "$RUNNER_TEMP/release/$ZIP" --repo "$GITHUB_REPOSITORY" \
+            --key "$key" --keys-from headless/update_check/self_update.c --out "$RUNNER_TEMP/catalog" \
+            --notes "$RUNNER_TEMP/release/notes.md" --released "$RELEASED" --current "$current" "${prerelease[@]}"
+
+      - name: Publish to gh-pages
+        if: steps.release.outputs.skip != '1'
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if git fetch -q --depth 1 origin gh-pages 2> /dev/null; then
+            git switch -q -c gh-pages FETCH_HEAD
+          else
+            git switch -q --orphan gh-pages
+          fi
+          rm -rf api/v1
+          mkdir -p api/v1
+          cp -R "$RUNNER_TEMP/catalog/." api/v1/
+          touch .nojekyll
+          git add -A .nojekyll api/v1
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit -q -m "catalog: offer $TAG"
+          git push -q origin HEAD:gh-pages
+          gh api -X POST "repos/$GITHUB_REPOSITORY/pages/builds" > /dev/null ||
+            echo "::warning title=Pages build not requested::Enable GitHub Pages from the gh-pages branch (Settings > Pages)."
+          echo "### Catalog offers $TAG" >> "$GITHUB_STEP_SUMMARY"
+          sed -n '1p' api/v1/manifest.json >> "$GITHUB_STEP_SUMMARY"
