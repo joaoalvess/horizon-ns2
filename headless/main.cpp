@@ -53,6 +53,7 @@ extern "C" size_t eden_heap_last_failure(unsigned*, size_t*);
 #include "keyboard_applet.h"
 #include "load_address.h"
 #include "preferences.h"
+#include "horizon_patches.h"
 #include "metadata_bridge.h"
 #ifdef EDEN_PS5_OPENGL
 #include "graphics.h"
@@ -1315,6 +1316,7 @@ int main(int argc, char** argv) {
             const std::string mods = Eden::Mods::Summary(all_mods, mods_off, cheats_on);
             Settings::values.disabled_addons[title] = mods_off;
             Eden::Report("launch", ("Mods: " + mods).c_str());
+            Eden::Report("launch", ("Horizon patches: " + Horizon::Patches::Apply(title)).c_str());
             Eden::Crash::SetSession("game " + std::filesystem::path(guest).filename().string() + " (" + title_id +
                                     "), " + Eden::BackendName(backend) + ", resolution " +
                                     Eden::kResolutionKeys[resolution] + ", " + Eden::kUpscalingFilterLabels[filter] +
